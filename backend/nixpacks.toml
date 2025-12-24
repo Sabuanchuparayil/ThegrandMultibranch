@@ -8,17 +8,16 @@ nixPkgs = ["python311", "git"]
 [phases.install]
 cmds = [
   "python3 -m venv .venv",
-  "source .venv/bin/activate",
-  "pip install --upgrade pip setuptools wheel",
-  "pip install -r requirements.txt",
-  "pip install git+https://github.com/saleor/saleor.git",
-  "python -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
+  "source .venv/bin/activate && pip install --upgrade pip setuptools wheel",
+  "source .venv/bin/activate && pip install -r requirements.txt",
+  "source .venv/bin/activate && pip install git+https://github.com/saleor/saleor.git",
+  "source .venv/bin/activate && python -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
 ]
 
 [phases.build]
 cmds = [
-  "source .venv/bin/activate && python manage.py collectstatic --noinput || true",
+  ". .venv/bin/activate && python manage.py collectstatic --noinput || true",
 ]
 
 [start]
-cmd = "source .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+cmd = ". .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
