@@ -30,52 +30,77 @@ def _log_msg(loc, msg, data, hyp):
 # #endregion
 
 # We need to import Saleor from the installed package, not our local saleor directory
-# Instead of removing backend from sys.path (which breaks everything), we'll use a different strategy:
-# Try importing directly and handle the conflict if it occurs
+# Our local backend/saleor/ directory is interfering with the import
+# Strategy: Temporarily remove local saleor from sys.modules and force import from site-packages
 
 # #region agent log
-_log_msg('grandgold_settings.py:28', 'Starting Saleor import attempt', {'sys_path': sys.path[:3]}, 'A')
+_log_msg('grandgold_settings.py:36', 'Starting Saleor import attempt', {'sys_path_length': len(sys.path), 'backend_dir_in_path': os.path.dirname(__file__) in sys.path}, 'A')
 # #endregion
 
+# Store and temporarily remove local saleor modules to force import from installed package
+_local_saleor_modules = {}
+for key in list(sys.modules.keys()):
+    if key.startswith('saleor'):
+        _local_saleor_modules[key] = sys.modules.pop(key)
+
 try:
-    # First, try to import directly - if Saleor is installed correctly, this should work
-    # even if our local saleor directory exists, Python should find the installed one first
-    # (site-packages comes before current directory in Python's module search path)
+    # Now import from installed package (should be in site-packages)
+    import importlib
+    import importlib.util
+    import site
     
-    # Check which saleor module we're importing from BEFORE wildcard import
-    import saleor
-    import saleor.settings as saleor_settings_check
-    saleor_module_path = getattr(saleor, '__file__', None) or 'unknown'
-    saleor_settings_path = getattr(saleor_settings_check, '__file__', None) or 'unknown'
-    
-    # #region agent log
-    _log_msg('grandgold_settings.py:40', 'Before wildcard import', {'saleor_module_path': saleor_module_path, 'saleor_settings_path': saleor_settings_path, 'has_INSTALLED_APPS_in_module': hasattr(saleor_settings_check, 'INSTALLED_APPS')}, 'A')
-    # #endregion
-    
-    # If we're importing from local directory (not site-packages), that's a problem
-    is_local = saleor_settings_path and saleor_settings_path != 'unknown' and '/app/' in saleor_settings_path and 'site-packages' not in saleor_settings_path
-    
-    # Now do the wildcard import
-    from saleor.settings import *  # noqa: F403, F405
+    # Find site-packages that contains saleor
+    site_packages_path = None
+    for sp_path in site.getsitepackages():
+        saleor_path = os.path.join(sp_path, 'saleor')
+        if os.path.exists(saleor_path):
+            site_packages_path = sp_path
+            break
     
     # #region agent log
-    uppercase_after = [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:10]
-    _log_msg('grandgold_settings.py:50', 'After wildcard import', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'uppercase_keys': uppercase_after, 'is_local': is_local}, 'A')
+    _log_msg('grandgold_settings.py:53', 'Looking for installed Saleor', {'site_packages_path': site_packages_path, 'saleor_exists': os.path.exists(os.path.join(site_packages_path, 'saleor')) if site_packages_path else False}, 'A')
     # #endregion
     
-    # If wildcard import didn't work (no uppercase attrs) but module has them, copy manually
-    if not uppercase_after and hasattr(saleor_settings_check, 'INSTALLED_APPS'):
-        # #region agent log
-        _log_msg('grandgold_settings.py:55', 'Wildcard import failed, manually copying attributes', {'module_has_attrs': len([a for a in dir(saleor_settings_check) if a.isupper()])}, 'A')
-        # #endregion
-        
-        # Manually copy all uppercase attributes
-        for attr_name in dir(saleor_settings_check):
-            if attr_name.isupper() and not attr_name.startswith('_'):
-                try:
-                    globals()[attr_name] = getattr(saleor_settings_check, attr_name)
-                except (AttributeError, TypeError):
-                    pass
+    if site_packages_path:
+        # Explicitly load from site-packages
+        settings_file = os.path.join(site_packages_path, 'saleor', 'settings.py')
+        if os.path.exists(settings_file):
+            # Load saleor package first
+            saleor_init = os.path.join(site_packages_path, 'saleor', '__init__.py')
+            if os.path.exists(saleor_init):
+                saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+                saleor_module = importlib.util.module_from_spec(saleor_spec)
+                sys.modules['saleor'] = saleor_module
+                saleor_spec.loader.exec_module(saleor_module)
+            
+            # Load settings module
+            spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
+            saleor_settings_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(saleor_settings_module)
+            sys.modules['saleor.settings'] = saleor_settings_module
+            
+            # #region agent log
+            _log_msg('grandgold_settings.py:70', 'Loaded from site-packages', {'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'), 'uppercase_count': len([a for a in dir(saleor_settings_module) if a.isupper()])}, 'A')
+            # #endregion
+            
+            # Copy all uppercase attributes (Django settings)
+            copied = 0
+            for attr_name in dir(saleor_settings_module):
+                if attr_name.isupper() and not attr_name.startswith('_'):
+                    try:
+                        globals()[attr_name] = getattr(saleor_settings_module, attr_name)
+                        copied += 1
+                    except (AttributeError, TypeError):
+                        pass
+            
+            # #region agent log
+            _log_msg('grandgold_settings.py:82', 'Copied attributes', {'copied_count': copied, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'A')
+            # #endregion
+        else:
+            raise ImportError(f"Saleor settings.py not found at {settings_file}")
+    else:
+        # Fallback: try direct import (might work if site-packages is in path correctly)
+        from saleor.settings import *  # noqa: F403, F405
     
 except ImportError as e:
     # #region agent log
