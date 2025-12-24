@@ -362,22 +362,22 @@ if 'INSTALLED_APPS' not in globals():
                 # Final check: try direct import to see what error we get
                 try:
                     import saleor
-                saleor_location = getattr(saleor, '__file__', None) or (getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None)
-                raise ImportError(
-                    f"Could not find site-packages directory containing Saleor. "
-                    f"site.getsitepackages(): {all_site_packages}. "
-                    f"sys.path site-packages: {sys_site_packages}. "
-                    f"Saleor module location: {saleor_location}. "
-                    f"Saleor may not be installed correctly. Check Railway build logs."
-                )
-            except ImportError:
-                raise ImportError(
-                    f"Could not find site-packages directory containing Saleor. "
-                    f"site.getsitepackages(): {all_site_packages}. "
-                    f"sys.path site-packages: {sys_site_packages}. "
-                    f"sys.path: {sys.path[:10]}. "
-                    f"Saleor is not installed. Check Railway build logs for installation errors."
-                )
+                    saleor_location = getattr(saleor, '__file__', None) or (getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None)
+                    raise ImportError(
+                        f"Could not find site-packages directory containing Saleor. "
+                        f"site.getsitepackages(): {all_site_packages}. "
+                        f"sys.path site-packages: {sys_site_packages}. "
+                        f"Saleor module location: {saleor_location}. "
+                        f"Saleor may not be installed correctly. Check Railway build logs."
+                    )
+                except ImportError:
+                    raise ImportError(
+                        f"Could not find site-packages directory containing Saleor. "
+                        f"site.getsitepackages(): {all_site_packages}. "
+                        f"sys.path site-packages: {sys_site_packages}. "
+                        f"sys.path: {sys.path[:10]}. "
+                        f"Saleor is not installed. Check Railway build logs for installation errors."
+                    )
             else:
                 # Found in sys.path, continue loading
             site_packages_path = saleor_found_path
