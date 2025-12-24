@@ -181,7 +181,7 @@ if 'INSTALLED_APPS' not in globals():
         # #endregion
     
         if venv_exists and saleor_in_venv:
-        site_packages_path = venv_site_packages
+            site_packages_path = venv_site_packages
     
         # Method 3b: Try /app/.venv directly (Railway root)
         app_venv_site_packages = '/app/.venv/lib/python3.11/site-packages'
@@ -197,7 +197,7 @@ if 'INSTALLED_APPS' not in globals():
         # #endregion
     
         if app_venv_exists and saleor_in_app_venv and not site_packages_path:
-        site_packages_path = app_venv_site_packages
+            site_packages_path = app_venv_site_packages
     
         # Method 4: Try to find where saleor is actually installed
         # Check paths but EXCLUDE /app directory (that's our local code)
@@ -598,6 +598,10 @@ if 'DATABASE_URL' in os.environ:
 
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
+
+# WSGI Application
+# Railway's nixpacks requires this setting to find the WSGI application
+WSGI_APPLICATION = 'wsgi.application'
 
 # Media files - use S3 if configured
 if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
