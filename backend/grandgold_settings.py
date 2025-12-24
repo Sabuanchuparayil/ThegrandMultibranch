@@ -56,17 +56,31 @@ try:
     # Method 1: site.getsitepackages()
     all_site_packages = site.getsitepackages()
     
-    # Method 2: Check sys.path for site-packages
-    sys_site_packages = [p for p in sys.path if 'site-packages' in p]
+    # Method 2: Check sys.path for site-packages (exclude /app directory)
+    sys_site_packages = [p for p in sys.path if 'site-packages' in p and '/app/' not in p.replace('\\', '/')]
     
-    # Method 3: Try to find where saleor is actually installed
-    # Check all paths in sys.path
-    for check_path in sys.path + all_site_packages:
+    # Method 3: Try .venv directory explicitly (Railway uses .venv)
+    backend_dir = os.path.dirname(__file__)
+    venv_site_packages = os.path.join(backend_dir, '.venv', 'lib', 'python3.11', 'site-packages')
+    if os.path.exists(venv_site_packages):
+        saleor_path = os.path.join(venv_site_packages, 'saleor')
+        if os.path.exists(saleor_path):
+            site_packages_path = venv_site_packages
+    
+    # Method 4: Try to find where saleor is actually installed
+    # Check paths but EXCLUDE /app directory (that's our local code)
+    for check_path in sys_site_packages + all_site_packages:
         if check_path and os.path.exists(check_path):
+            # Skip /app directory - that's our local code, not installed packages
+            normalized_path = check_path.replace('\\', '/')
+            if '/app/' in normalized_path and 'site-packages' not in normalized_path:
+                continue
             saleor_path = os.path.join(check_path, 'saleor')
             if os.path.exists(saleor_path):
-                site_packages_path = check_path
-                break
+                # Verify this is NOT our local saleor directory
+                if not os.path.samefile(saleor_path, os.path.join(backend_dir, 'saleor')):
+                    site_packages_path = check_path
+                    break
     
     # #region agent log
     _log_msg('grandgold_settings.py:58', 'Looking for installed Saleor', {
