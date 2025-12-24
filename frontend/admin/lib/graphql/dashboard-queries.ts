@@ -141,7 +141,7 @@ export const GET_TOP_PRODUCTS = gql`
 // ============================================================================
 
 export const GET_BRANCH_KPIS = gql`
-  query GetBranchKPIs($branchId: ID!, $dateFrom: DateTime!, $dateTo: DateTime!) {
+  query GetBranchKPIs($branchId: ID!, $dateFrom: DateTime!, $dateTo: DateTime!, $todayStart: DateTime!, $todayEnd: DateTime!) {
     # Branch information
     branch(id: $branchId) @client {
       id
@@ -277,7 +277,22 @@ export const GET_BRANCH_STOCK_MOVEMENTS = gql`
 export const GET_BRANCH_CLICK_COLLECT = gql`
   query GetBranchClickCollect($branchId: ID!, $status: String) {
     # Click & Collect orders for branch
-    # Implement based on your GraphQL schema
+    # This query will be implemented when the backend schema is ready
+    orders(
+      filter: {
+        # Add click & collect filter when available
+      }
+      first: 100
+    ) {
+      totalCount
+      edges {
+        node {
+          id
+          number
+          status
+        }
+      }
+    }
   }
 `;
 

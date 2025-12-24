@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useQuery, gql } from '@apollo/client';
 import {
   ChartBarIcon,
@@ -60,7 +60,26 @@ const GET_BRANCH_INVENTORY_STATUS = gql`
 const GET_BRANCH_SALES_TREND = gql`
   query GetBranchSalesTrend($branchId: ID!, $days: Int!) {
     # Sales trend for this branch
-    # Implement based on your GraphQL schema
+    # This query will be implemented when the backend schema is ready
+    orders(
+      filter: {
+        # Add branch filter when available
+      }
+      first: 100
+    ) {
+      totalCount
+      edges {
+        node {
+          id
+          number
+          total {
+            gross {
+              amount
+            }
+          }
+        }
+      }
+    }
   }
 `;
 
@@ -114,8 +133,8 @@ function KPICard({ title, value, change, changeLabel, icon: Icon, trend, color =
   );
 }
 
-// Dashboard Page Component
-export default function BranchDashboard() {
+// Dashboard Page Component (Inner component that uses searchParams)
+function BranchDashboardContent() {
   const searchParams = useSearchParams();
   const branchId = searchParams.get('branchId') || '1'; // Default or from URL
   
@@ -448,6 +467,19 @@ export default function BranchDashboard() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrapper component with Suspense boundary
+export default function BranchDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg text-gray-600">Loading branch dashboard...</div>
+      </div>
+    }>
+      <BranchDashboardContent />
+    </Suspense>
   );
 }
 

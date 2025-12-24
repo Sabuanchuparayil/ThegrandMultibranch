@@ -29,12 +29,29 @@ export default function BranchDashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
+  // Calculate today's date range
+  const getTodayRange = () => {
+    const today = new Date();
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(today);
+    end.setHours(23, 59, 59, 999);
+    return {
+      todayStart: start.toISOString(),
+      todayEnd: end.toISOString(),
+    };
+  };
+
+  const todayRange = getTodayRange();
+
   // Fetch branch KPIs
   const { data: kpisData, loading: kpisLoading, error: kpisError } = useQuery(GET_BRANCH_KPIS, {
     variables: {
       branchId: branchId,
-      startDate: dateRange.start,
-      endDate: dateRange.end,
+      dateFrom: dateRange.start,
+      dateTo: dateRange.end,
+      todayStart: todayRange.todayStart,
+      todayEnd: todayRange.todayEnd,
     },
     skip: !branchId,
     pollInterval: 60000, // Refresh every minute
@@ -56,6 +73,9 @@ export default function BranchDashboardPage() {
         break;
       case '90d':
         from.setDate(from.getDate() - 90);
+        break;
+      case '1y':
+        from.setDate(from.getDate() - 365);
         break;
       default:
         from.setDate(from.getDate() - 30);

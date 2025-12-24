@@ -72,7 +72,7 @@ export const SalesChart: React.FC<SalesChartProps> = ({
             style={{ fontSize: '12px' }}
           />
           <Tooltip
-            formatter={(value: number | undefined, name: string) => {
+            formatter={(value: number | undefined, name: string | undefined) => {
               if (name === 'value') {
                 return formatCurrency(value ?? 0, data[0]?.currency || 'GBP');
               }
