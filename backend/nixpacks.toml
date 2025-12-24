@@ -3,7 +3,7 @@
 # Using virtual environment to avoid Nix externally-managed-environment restrictions
 
 [phases.setup]
-nixPkgs = ["python311", "git"]
+nixPkgs = ["python312", "git"]
 
 [phases.install]
 cmds = [
