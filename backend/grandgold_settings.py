@@ -138,71 +138,71 @@ if 'INSTALLED_APPS' not in globals():
         import importlib.util
         import site
     
-    # Find site-packages that contains saleor
-    # Try multiple methods to find site-packages
-    site_packages_path = None
+        # Find site-packages that contains saleor
+        # Try multiple methods to find site-packages
+        site_packages_path = None
     
-    # Method 1: site.getsitepackages()
-    all_site_packages = site.getsitepackages()
+        # Method 1: site.getsitepackages()
+        all_site_packages = site.getsitepackages()
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:57', 'Method 1: site.getsitepackages()', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:57', 'Method 1: site.getsitepackages()', {
         'all_site_packages': all_site_packages,
         'count': len(all_site_packages) if all_site_packages else 0
-    }, 'A')
-    # #endregion
+        }, 'A')
+        # #endregion
     
-    # Method 2: Check sys.path for site-packages
-    # Include paths with 'site-packages' - even if they're in /app/.venv/ (that's the installed packages)
-    # Only exclude /app/ paths that DON'T have site-packages (those are our local code)
-    sys_site_packages = [p for p in sys.path if 'site-packages' in p]
+        # Method 2: Check sys.path for site-packages
+        # Include paths with 'site-packages' - even if they're in /app/.venv/ (that's the installed packages)
+        # Only exclude /app/ paths that DON'T have site-packages (those are our local code)
+        sys_site_packages = [p for p in sys.path if 'site-packages' in p]
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:62', 'Method 2: sys.path filtering', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:62', 'Method 2: sys.path filtering', {
         'sys_site_packages': sys_site_packages,
         'sys_path_all': sys.path,
         'filtered_count': len(sys_site_packages)
-    }, 'B')
-    # #endregion
+        }, 'B')
+        # #endregion
     
-    # Method 3: Try .venv directory explicitly (Railway uses .venv)
-    backend_dir = os.path.dirname(__file__)
-    venv_site_packages = os.path.join(backend_dir, '.venv', 'lib', 'python3.11', 'site-packages')
-    venv_exists = os.path.exists(venv_site_packages)
-    saleor_in_venv = os.path.exists(os.path.join(venv_site_packages, 'saleor')) if venv_exists else False
+        # Method 3: Try .venv directory explicitly (Railway uses .venv)
+        backend_dir = os.path.dirname(__file__)
+        venv_site_packages = os.path.join(backend_dir, '.venv', 'lib', 'python3.11', 'site-packages')
+        venv_exists = os.path.exists(venv_site_packages)
+        saleor_in_venv = os.path.exists(os.path.join(venv_site_packages, 'saleor')) if venv_exists else False
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:70', 'Method 3: Direct venv check', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:70', 'Method 3: Direct venv check', {
         'backend_dir': backend_dir,
         'venv_site_packages': venv_site_packages,
         'venv_exists': venv_exists,
         'saleor_in_venv': saleor_in_venv
-    }, 'C')
-    # #endregion
+        }, 'C')
+        # #endregion
     
-    if venv_exists and saleor_in_venv:
+        if venv_exists and saleor_in_venv:
         site_packages_path = venv_site_packages
     
-    # Method 3b: Try /app/.venv directly (Railway root)
-    app_venv_site_packages = '/app/.venv/lib/python3.11/site-packages'
-    app_venv_exists = os.path.exists(app_venv_site_packages)
-    saleor_in_app_venv = os.path.exists(os.path.join(app_venv_site_packages, 'saleor')) if app_venv_exists else False
+        # Method 3b: Try /app/.venv directly (Railway root)
+        app_venv_site_packages = '/app/.venv/lib/python3.11/site-packages'
+        app_venv_exists = os.path.exists(app_venv_site_packages)
+        saleor_in_app_venv = os.path.exists(os.path.join(app_venv_site_packages, 'saleor')) if app_venv_exists else False
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:82', 'Method 3b: /app/.venv check', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:82', 'Method 3b: /app/.venv check', {
         'app_venv_site_packages': app_venv_site_packages,
         'app_venv_exists': app_venv_exists,
         'saleor_in_app_venv': saleor_in_app_venv
-    }, 'C')
-    # #endregion
+        }, 'C')
+        # #endregion
     
-    if app_venv_exists and saleor_in_app_venv and not site_packages_path:
+        if app_venv_exists and saleor_in_app_venv and not site_packages_path:
         site_packages_path = app_venv_site_packages
     
-    # Method 4: Try to find where saleor is actually installed
-    # Check paths but EXCLUDE /app directory (that's our local code)
-    checked_paths = []
-    for check_path in sys_site_packages + (all_site_packages or []):
+        # Method 4: Try to find where saleor is actually installed
+        # Check paths but EXCLUDE /app directory (that's our local code)
+        checked_paths = []
+        for check_path in sys_site_packages + (all_site_packages or []):
         if check_path and os.path.exists(check_path):
             # Skip /app directory - that's our local code, not installed packages
             normalized_path = check_path.replace('\\', '/')
@@ -231,25 +231,25 @@ if 'INSTALLED_APPS' not in globals():
                     site_packages_path = check_path
                     break
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:100', 'Method 4: Iterating paths', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:100', 'Method 4: Iterating paths', {
         'checked_paths': checked_paths[:10],
         'found_site_packages': site_packages_path
-    }, 'B')
-    # #endregion
+        }, 'B')
+        # #endregion
     
-    # #region agent log
-    _log_msg('grandgold_settings.py:115', 'Summary: Looking for installed Saleor', {
+        # #region agent log
+        _log_msg('grandgold_settings.py:115', 'Summary: Looking for installed Saleor', {
         'site_getsitepackages': all_site_packages,
         'sys_site_packages': sys_site_packages,
         'sys_path': sys.path,
         'found_site_packages_path': site_packages_path,
         'saleor_exists': os.path.exists(os.path.join(site_packages_path, 'saleor')) if site_packages_path else False,
         'python_version': sys.version
-    }, 'A')
-    # #endregion
+        }, 'A')
+        # #endregion
     
-    if site_packages_path:
+        if site_packages_path:
         # Explicitly load from site-packages
         saleor_dir = os.path.join(site_packages_path, 'saleor')
         
@@ -315,7 +315,7 @@ if 'INSTALLED_APPS' not in globals():
             # #endregion
         else:
             raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
-    else:
+        else:
         # Try to find Saleor in sys.path directly as fallback
         # BUT exclude local /app/saleor directory - only accept site-packages locations
         saleor_found_path = None
