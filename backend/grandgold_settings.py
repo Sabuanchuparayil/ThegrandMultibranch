@@ -380,8 +380,8 @@ if 'INSTALLED_APPS' not in globals():
                     )
             else:
                 # Found in sys.path, continue loading
-            site_packages_path = saleor_found_path
-            saleor_dir = os.path.join(site_packages_path, 'saleor')
+                site_packages_path = saleor_found_path
+                saleor_dir = os.path.join(site_packages_path, 'saleor')
             settings_file = os.path.join(saleor_dir, 'settings.py')
             settings_package = os.path.join(saleor_dir, 'settings')
             
