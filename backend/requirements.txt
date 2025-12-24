@@ -1,0 +1,17 @@
+saleor>=3.20.0
+django>=4.2.0
+psycopg2-binary>=2.9.0
+redis>=5.0.0
+celery>=5.3.0
+django-cors-headers>=4.2.0
+django-filter>=23.2
+gunicorn>=21.2.0
+whitenoise>=6.5.0
+boto3>=1.28.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+graphene-django>=3.0.0
+reportlab>=4.0.0
+weasyprint>=60.0.0
+dj-database-url>=2.1.0
+
