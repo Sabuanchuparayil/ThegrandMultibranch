@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, gql } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useToastContext } from '@/components/notifications/ToastProvider';
+import { validateBranchForm, type BranchFormData } from '@/lib/validation';
+import { CREATE_BRANCH, UPDATE_BRANCH, DELETE_BRANCH } from '@/lib/graphql/mutations';
 
 const GET_BRANCHES = gql`
   query GetBranches {
@@ -66,10 +69,25 @@ export default function BranchesModule() {
     setShowForm(true);
   };
 
+  const [deleteBranch] = useMutation(DELETE_BRANCH, {
+    refetchQueries: [{ query: GET_BRANCHES }],
+  });
+  const toast = useToastContext();
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this branch?')) {
-      // Implement delete mutation
-      console.log('Delete branch:', id);
+      try {
+        const { data } = await deleteBranch({ variables: { id } });
+        if (data?.branchDelete?.success) {
+          toast.success('Branch deleted successfully');
+          refetch();
+        } else {
+          const errors = data?.branchDelete?.errors || [];
+          toast.error(errors.length > 0 ? errors[0].message : 'Failed to delete branch');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to delete branch');
+      }
     }
   };
 
@@ -257,7 +275,7 @@ export default function BranchesModule() {
 
 // Branch Form Component
 function BranchFormModal({ branch, onClose, onSuccess }: any) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BranchFormData>({
     name: branch?.name || '',
     code: branch?.code || '',
     regionId: branch?.region?.id || '',
@@ -274,11 +292,108 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
     isActive: branch?.isActive ?? true,
   });
 
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToastContext();
+
+  const [createBranch] = useMutation(CREATE_BRANCH, {
+    refetchQueries: [{ query: GET_BRANCHES }],
+  });
+
+  const [updateBranch] = useMutation(UPDATE_BRANCH, {
+    refetchQueries: [{ query: GET_BRANCHES }],
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement create/update mutation
-    console.log('Submit branch:', formData);
-    onSuccess();
+    setValidationErrors({});
+
+    // Client-side validation
+    const validation = validateBranchForm(formData);
+    if (!validation.isValid) {
+      const errors: Record<string, string> = {};
+      validation.errors.forEach((err) => {
+        errors[err.field] = err.message;
+      });
+      setValidationErrors(errors);
+      toast.error('Please fix the form errors before submitting');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const input = {
+        name: formData.name.trim(),
+        code: formData.code.trim(),
+        regionId: formData.regionId,
+        addressLine1: formData.addressLine1.trim(),
+        addressLine2: formData.addressLine2?.trim() || '',
+        city: formData.city.trim(),
+        state: formData.state?.trim() || '',
+        postalCode: formData.postalCode.trim(),
+        country: formData.country.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        canShip: formData.canShip,
+        canClickCollect: formData.canClickCollect,
+        isActive: formData.isActive,
+      };
+
+      if (branch) {
+        // Update existing branch
+        const { data } = await updateBranch({
+          variables: {
+            id: branch.id,
+            input,
+          },
+        });
+
+        if (data?.branchUpdate?.branch) {
+          toast.success('Branch updated successfully');
+          onSuccess();
+        } else {
+          const errors = data?.branchUpdate?.errors || [];
+          if (errors.length > 0) {
+            const fieldErrors: Record<string, string> = {};
+            errors.forEach((err: any) => {
+              fieldErrors[err.field] = err.message;
+            });
+            setValidationErrors(fieldErrors);
+            toast.error('Failed to update branch. Please check the errors.');
+          } else {
+            toast.error('Failed to update branch');
+          }
+        }
+      } else {
+        // Create new branch
+        const { data } = await createBranch({
+          variables: { input },
+        });
+
+        if (data?.branchCreate?.branch) {
+          toast.success('Branch created successfully');
+          onSuccess();
+        } else {
+          const errors = data?.branchCreate?.errors || [];
+          if (errors.length > 0) {
+            const fieldErrors: Record<string, string> = {};
+            errors.forEach((err: any) => {
+              fieldErrors[err.field] = err.message;
+            });
+            setValidationErrors(fieldErrors);
+            toast.error('Failed to create branch. Please check the errors.');
+          } else {
+            toast.error('Failed to create branch');
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Branch mutation error:', error);
+      toast.error(error.message || `Failed to ${branch ? 'update' : 'create'} branch`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -299,9 +414,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (validationErrors.name) {
+                    setValidationErrors({ ...validationErrors, name: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.name && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.name}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -311,9 +436,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, code: e.target.value });
+                  if (validationErrors.code) {
+                    setValidationErrors({ ...validationErrors, code: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.code ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.code && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.code}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -322,14 +457,24 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
               <select
                 required
                 value={formData.regionId}
-                onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, regionId: e.target.value });
+                  if (validationErrors.regionId) {
+                    setValidationErrors({ ...validationErrors, regionId: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.regionId ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
                 <option value="">Select Region</option>
                 <option value="1">United Kingdom</option>
                 <option value="2">United Arab Emirates</option>
                 <option value="3">India</option>
               </select>
+              {validationErrors.regionId && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.regionId}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
@@ -337,9 +482,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, country: e.target.value });
+                  if (validationErrors.country) {
+                    setValidationErrors({ ...validationErrors, country: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.country ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.country && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.country}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -349,9 +504,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.addressLine1}
-                onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, addressLine1: e.target.value });
+                  if (validationErrors.addressLine1) {
+                    setValidationErrors({ ...validationErrors, addressLine1: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.addressLine1 ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.addressLine1 && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.addressLine1}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -370,9 +535,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, city: e.target.value });
+                  if (validationErrors.city) {
+                    setValidationErrors({ ...validationErrors, city: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.city ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.city && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.city}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
@@ -391,9 +566,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="text"
                 required
                 value={formData.postalCode}
-                onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, postalCode: e.target.value });
+                  if (validationErrors.postalCode) {
+                    setValidationErrors({ ...validationErrors, postalCode: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.postalCode ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.postalCode && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.postalCode}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
@@ -401,9 +586,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="tel"
                 required
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: e.target.value });
+                  if (validationErrors.phone) {
+                    setValidationErrors({ ...validationErrors, phone: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.phone && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
@@ -411,9 +606,19 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
                 type="email"
                 required
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  if (validationErrors.email) {
+                    setValidationErrors({ ...validationErrors, email: '' });
+                  }
+                }}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {validationErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-4">
@@ -455,9 +660,20 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              {branch ? 'Update' : 'Create'} Branch
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {branch ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                `${branch ? 'Update' : 'Create'} Branch`
+              )}
             </button>
           </div>
         </form>

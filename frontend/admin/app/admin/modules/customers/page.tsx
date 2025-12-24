@@ -133,8 +133,24 @@ export default function CustomersModule() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button className="text-blue-600 hover:text-blue-900 mr-4"><EyeIcon className="h-5 w-5 inline" /></button>
-                        <button className="text-gray-600 hover:text-gray-900"><PencilIcon className="h-5 w-5 inline" /></button>
+                        <button
+                          onClick={() => {
+                            // TODO: Open customer detail modal or navigate to detail page
+                            console.log('View customer:', customer.id);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          <EyeIcon className="h-5 w-5 inline" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            // TODO: Open customer edit modal
+                            console.log('Edit customer:', customer.id);
+                          }}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          <PencilIcon className="h-5 w-5 inline" />
+                        </button>
                       </td>
                     </tr>
                   ))

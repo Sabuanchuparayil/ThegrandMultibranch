@@ -51,7 +51,15 @@ export default function FulfillmentModule() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{shipment.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button className="text-blue-600 hover:text-blue-900"><TruckIcon className="h-5 w-5 inline" /></button>
+                    <button
+                      onClick={() => {
+                        // TODO: Open shipment tracking modal
+                        console.log('Track shipment:', shipment.id);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      <TruckIcon className="h-5 w-5 inline" />
+                    </button>
                   </td>
                 </tr>
               ))}

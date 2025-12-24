@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const GET_PRODUCTS = gql`
   query GetProducts($first: Int, $after: String, $search: String) {
@@ -36,8 +36,9 @@ const GET_PRODUCTS = gql`
 export default function ProductsModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  const { data, loading, error } = useQuery(GET_PRODUCTS, {
+  const { data, loading, error, refetch } = useQuery(GET_PRODUCTS, {
     variables: {
       first: 50,
       search: searchTerm || null,
@@ -100,7 +101,10 @@ export default function ProductsModule() {
             <p className="text-gray-600 mt-1">Manage jewellery products and variants</p>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditingProduct(null);
+              setShowForm(true);
+            }}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
@@ -206,10 +210,24 @@ export default function ProductsModule() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 mr-4">
+                          <button
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setShowForm(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                          >
                             <PencilIcon className="h-5 w-5 inline" />
                           </button>
-                          <button className="text-red-600 hover:text-red-900">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this product?')) {
+                                // TODO: Implement delete mutation
+                                console.log('Delete product:', product.id);
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-900"
+                          >
                             <TrashIcon className="h-5 w-5 inline" />
                           </button>
                         </td>
@@ -221,6 +239,110 @@ export default function ProductsModule() {
             </table>
           </div>
         </div>
+
+        {/* Product Form Modal */}
+        {showForm && (
+          <ProductFormModal
+            product={editingProduct}
+            onClose={() => {
+              setShowForm(false);
+              setEditingProduct(null);
+            }}
+            onSuccess={() => {
+              setShowForm(false);
+              setEditingProduct(null);
+              refetch();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Product Form Modal
+function ProductFormModal({ product, onClose, onSuccess }: any) {
+  const [formData, setFormData] = useState({
+    name: product?.name || '',
+    description: product?.description || '',
+    slug: product?.slug || '',
+    isPublished: product?.isPublished ?? false,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implement GraphQL mutation
+    console.log('Submit product:', formData);
+    onSuccess();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {product ? 'Edit Product' : 'Add New Product'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+            <input
+              type="text"
+              value={formData.slug}
+              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.isPublished}
+                onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="text-sm text-gray-700">Published</span>
+            </label>
+          </div>
+          <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              {product ? 'Update' : 'Create'} Product
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

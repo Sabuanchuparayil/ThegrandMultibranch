@@ -40,7 +40,15 @@ export default function ReturnsModule() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <button className="text-blue-600 hover:text-blue-900"><ArrowPathIcon className="h-5 w-5 inline" /></button>
+                    <button
+                      onClick={() => {
+                        // TODO: Open return detail/process modal
+                        console.log('Process return:', item.id);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      <ArrowPathIcon className="h-5 w-5 inline" />
+                    </button>
                   </td>
                 </tr>
               ))}

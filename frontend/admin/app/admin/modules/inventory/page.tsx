@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, gql } from '@apollo/client';
-import { PlusIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const GET_BRANCH_INVENTORY = gql`
   query GetBranchInventory($branchId: ID, $search: String, $lowStockOnly: Boolean) {
@@ -34,6 +34,7 @@ export default function InventoryModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const { data, loading, error } = useQuery(GET_BRANCH_INVENTORY, {
     variables: {
@@ -107,7 +108,10 @@ export default function InventoryModule() {
             <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
             <p className="text-gray-600 mt-1">Manage stock levels across all branches</p>
           </div>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             <PlusIcon className="h-5 w-5 mr-2" />
             Add Inventory
           </button>
@@ -231,8 +235,24 @@ export default function InventoryModule() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
-                        <button className="text-gray-600 hover:text-gray-900">Adjust</button>
+                        <button
+                          onClick={() => {
+                            // TODO: Open edit inventory modal
+                            console.log('Edit inventory:', item.id);
+                          }}
+                          className="text-blue-600 hover:text-blue-900 mr-4"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            // TODO: Open adjust stock modal
+                            console.log('Adjust inventory:', item.id);
+                          }}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          Adjust
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -241,6 +261,112 @@ export default function InventoryModule() {
             </table>
           </div>
         </div>
+
+        {/* Inventory Form Modal */}
+        {showForm && (
+          <InventoryFormModal
+            onClose={() => setShowForm(false)}
+            onSuccess={() => {
+              setShowForm(false);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Inventory Form Modal
+function InventoryFormModal({ onClose, onSuccess }: any) {
+  const [formData, setFormData] = useState({
+    branchId: '',
+    productVariantId: '',
+    quantity: 0,
+    lowStockThreshold: 5,
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implement GraphQL mutation
+    console.log('Submit inventory:', formData);
+    onSuccess();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Add Inventory</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+            <select
+              required
+              value={formData.branchId}
+              onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Branch</option>
+              <option value="1">London - Mayfair</option>
+              <option value="2">Dubai - Marina</option>
+              <option value="3">Mumbai - Bandra</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Product Variant *</label>
+            <select
+              required
+              value={formData.productVariantId}
+              onChange={(e) => setFormData({ ...formData, productVariantId: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Product Variant</option>
+              <option value="1">Gold Ring 22K - Size 6</option>
+              <option value="2">Diamond Necklace - Standard</option>
+              <option value="3">Silver Bracelet - Medium</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.lowStockThreshold}
+              onChange={(e) => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Add Inventory
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

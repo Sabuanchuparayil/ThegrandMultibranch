@@ -204,7 +204,13 @@ export default function OrdersModule() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900">
+                        <button
+                          onClick={() => {
+                            // Navigate to order detail page
+                            window.location.href = `/admin/modules/orders/${order.id}`;
+                          }}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
                           <EyeIcon className="h-5 w-5 inline" />
                         </button>
                       </td>
