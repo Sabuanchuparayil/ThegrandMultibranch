@@ -34,6 +34,18 @@ def _log_msg(loc, msg, data, hyp):
         pass
 # #endregion
 
+# #region agent log
+# Log Django version at import time
+try:
+    import django
+    _log_msg('grandgold_settings.py:36', 'Django version check', {
+        'django_version': django.get_version(),
+        'django_file': django.__file__ if hasattr(django, '__file__') else None
+    }, 'A')
+except Exception as e:
+    _log_msg('grandgold_settings.py:36', 'Django import failed', {'error': str(e)}, 'A')
+# #endregion
+
 # We need to import Saleor from the installed package, not our local saleor directory
 # Our local backend/saleor/ directory is interfering with the import
 # Strategy: Temporarily remove local saleor from sys.modules and force import from site-packages

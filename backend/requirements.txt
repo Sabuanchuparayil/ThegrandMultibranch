@@ -2,7 +2,8 @@
 # IMPORTANT: Saleor must be installed FIRST (before this file)
 # Saleor will install compatible versions of graphene, graphql-relay, etc.
 # This file only contains additional dependencies not provided by Saleor
-django>=4.2.0,<5.0
+# Note: Latest Saleor requires Django 5.0+ (uses db_default feature)
+django>=5.0.0,<6.0
 psycopg2-binary>=2.9.0
 redis>=5.0.0
 celery>=5.3.0
