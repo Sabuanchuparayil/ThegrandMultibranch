@@ -40,17 +40,23 @@ class ClickAndCollectOrderAdmin(admin.ModelAdmin):
 @admin.register(Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
     list_display = (
-        'fulfillment_id', 'order_id', 'branch', 'shipment_type', 
+        'fulfillment', 'get_order_id', 'branch', 'shipment_type', 
         'status', 'courier_name', 'tracking_number', 'dispatched_at', 'created_at'
     )
     list_filter = ('status', 'shipment_type', 'branch', 'courier_name', 'created_at')
-    search_fields = ('fulfillment_id', 'order_id', 'tracking_number', 'courier_name')
-    readonly_fields = ('created_at', 'updated_at')
+    search_fields = ('fulfillment__id', 'fulfillment__order__id', 'tracking_number', 'courier_name')
+    readonly_fields = ('created_at', 'updated_at', 'get_order_id')
     inlines = [ShipmentItemInline]
+    
+    def get_order_id(self, obj):
+        """Display order ID through fulfillment"""
+        return obj.order_id
+    get_order_id.short_description = 'Order ID'
+    get_order_id.admin_order_field = 'fulfillment__order__id'
     
     fieldsets = (
         ('Shipment Information', {
-            'fields': ('fulfillment_id', 'order_id', 'branch', 'shipment_type', 'status')
+            'fields': ('fulfillment', 'get_order_id', 'branch', 'shipment_type', 'status')
         }),
         ('Courier Details', {
             'fields': ('courier_name', 'courier_service', 'tracking_number', 'tracking_url')

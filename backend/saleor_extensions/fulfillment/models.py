@@ -121,11 +121,18 @@ class Shipment(models.Model):
         verbose_name_plural = 'Shipments'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['order_id', 'fulfillment_id']),
+            models.Index(fields=['fulfillment']),
             models.Index(fields=['branch', 'status', 'created_at']),
             models.Index(fields=['tracking_number']),
             models.Index(fields=['status', 'dispatched_at']),
         ]
+    
+    @property
+    def order_id(self):
+        """Get order ID through fulfillment relationship"""
+        if self.fulfillment and hasattr(self.fulfillment, 'order'):
+            return self.fulfillment.order.id if self.fulfillment.order else None
+        return None
     
     def __str__(self):
         tracking = f" - {self.tracking_number}" if self.tracking_number else ""
