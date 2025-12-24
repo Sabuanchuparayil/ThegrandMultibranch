@@ -3,7 +3,7 @@
 # Using virtual environment to avoid Nix externally-managed-environment restrictions
 
 [phases.setup]
-nixPkgs = ["python312", "git"]
+nixPkgs = ["python312", "git", "file"]  # 'file' package provides libmagic for python-magic
 
 [phases.install]
 cmds = [
