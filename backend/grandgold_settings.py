@@ -602,24 +602,42 @@ if 'MIDDLEWARE' not in globals():
 
 # Add CORS middleware early (before CommonMiddleware) to handle preflight requests
 # CORS middleware must be added before CommonMiddleware to intercept OPTIONS requests
+# Priority: Insert BEFORE CommonMiddleware (if exists), otherwise use fallback strategies
 if 'corsheaders.middleware.CorsMiddleware' not in MIDDLEWARE:  # noqa: F405
+    cors_inserted = False
     try:
-        # Try to insert after SessionMiddleware but before CommonMiddleware
-        session_index = MIDDLEWARE.index('django.contrib.sessions.middleware.SessionMiddleware')  # noqa: F405
-        MIDDLEWARE.insert(session_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+        # PRIORITY 1: Find CommonMiddleware and insert BEFORE it
+        # This ensures CORS works regardless of middleware order
+        common_index = MIDDLEWARE.index('django.middleware.common.CommonMiddleware')  # noqa: F405
+        MIDDLEWARE.insert(common_index, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+        cors_inserted = True
     except ValueError:
-        # If SessionMiddleware not found, try to insert before CommonMiddleware
+        # CommonMiddleware not found, try fallback strategies
+        pass
+    
+    if not cors_inserted:
         try:
-            common_index = MIDDLEWARE.index('django.middleware.common.CommonMiddleware')  # noqa: F405
-            MIDDLEWARE.insert(common_index, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+            # FALLBACK 1: Insert after SessionMiddleware (standard Django order)
+            session_index = MIDDLEWARE.index('django.contrib.sessions.middleware.SessionMiddleware')  # noqa: F405
+            MIDDLEWARE.insert(session_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+            cors_inserted = True
         except ValueError:
-            # If CommonMiddleware not found, insert at the beginning (after SecurityMiddleware)
-            try:
-                security_index = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')  # noqa: F405
-                MIDDLEWARE.insert(security_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
-            except ValueError:
-                # Last resort: prepend to the beginning
-                MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+            # SessionMiddleware not found, try next fallback
+            pass
+    
+    if not cors_inserted:
+        try:
+            # FALLBACK 2: Insert after SecurityMiddleware (first middleware in standard order)
+            security_index = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')  # noqa: F405
+            MIDDLEWARE.insert(security_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+            cors_inserted = True
+        except ValueError:
+            # SecurityMiddleware not found, use last resort
+            pass
+    
+    if not cors_inserted:
+        # LAST RESORT: Prepend to the beginning of middleware list
+        MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
 
 # Add audit middleware after AuthenticationMiddleware
 if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  # noqa: F405
