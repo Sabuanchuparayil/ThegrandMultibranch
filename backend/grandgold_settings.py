@@ -632,6 +632,13 @@ else:
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 
+# URL Configuration
+# Saleor should provide ROOT_URLCONF, but ensure it's set
+# If not provided by Saleor, use Saleor's default URLs
+if 'ROOT_URLCONF' not in globals():
+    # Saleor's default is 'saleor.urls'
+    ROOT_URLCONF = 'saleor.urls'
+
 # WSGI Application
 # Railway's nixpacks requires this setting to find the WSGI application
 WSGI_APPLICATION = 'wsgi.application'
