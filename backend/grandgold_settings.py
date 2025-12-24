@@ -672,42 +672,34 @@ else:
 # CORS Configuration for frontend connections
 # Allow requests from admin dashboard and storefront
 
-# For Railway deployments, we need to allow all Railway subdomains
-# Since Railway URLs can change, use a combination of explicit origins and regex patterns
+# For Railway deployments, allow all Railway subdomains using regex patterns
+# This provides flexibility when Railway URLs change during deployments
 
-# Check if we're in production (Railway deployment)
-is_production = not os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
+# IMPORTANT: When CORS_ALLOWED_ORIGINS is set, CORS_ALLOW_ALL_ORIGINS must be False
+# Use regex patterns to match Railway subdomains dynamically
+CORS_ALLOW_ALL_ORIGINS = False
 
-if is_production:
-    # For production: Use regex to allow all Railway subdomains (flexible for deployments)
-    # This is safer than CORS_ALLOW_ALL_ORIGINS = True but allows Railway subdomains
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGIN_REGEXES = [
-        r'^https://.*\.railway\.app$',  # Match any Railway subdomain
-        r'^http://localhost:\d+$',  # Allow any localhost port for development
-    ]
-    # Also include explicit origins from environment variable if set
-    cors_allowed_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-    if cors_allowed_origins_env:
-        CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_allowed_origins_env.split(',') if origin.strip()]
-    else:
-        # Default explicit origins as backup (regex should handle these)
-        CORS_ALLOWED_ORIGINS = [
-            'https://admin-dashboard-production-1924.up.railway.app',
-            'https://storefront-app-production-1924.up.railway.app',
-        ]
+# Regex patterns to match Railway subdomains (more flexible than hardcoded URLs)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.railway\.app$',  # Match any Railway subdomain (https)
+    r'^http://.*\.railway\.app$',   # Match any Railway subdomain (http, for testing)
+    r'^http://localhost:\d+$',      # Allow any localhost port for development
+    r'^http://127\.0\.0\.1:\d+$',   # Allow 127.0.0.1 for development
+]
+
+# Explicit origins (works alongside regex patterns)
+# These provide backup matching for common origins
+cors_allowed_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_allowed_origins_env:
+    # If CORS_ALLOWED_ORIGINS env var is set, use it
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_allowed_origins_env.split(',') if origin.strip()]
 else:
-    # For development: Allow localhost and explicit origins
-    CORS_ALLOW_ALL_ORIGINS = False
+    # Default explicit origins (regex patterns above should handle these, but include for backup)
     CORS_ALLOWED_ORIGINS = [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001',
-    ]
-    CORS_ALLOWED_ORIGIN_REGEXES = [
-        r'^http://localhost:\d+$',
-        r'^http://127\.0\.0\.1:\d+$',
+        'https://admin-dashboard-production-1924.up.railway.app',
+        'https://storefront-app-production-1924.up.railway.app',
+        'http://localhost:3000',  # Local development
+        'http://localhost:3001',  # Local development (alternative port)
     ]
 
 # Allow credentials (cookies, authorization headers)
