@@ -12,9 +12,8 @@ backend_dir = os.path.dirname(os.path.abspath(__file__))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-# Set Django settings module
-# Use saleor.settings which will import our custom extensions
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'saleor.settings')
+# Set Django settings module to use our custom settings that extend Saleor
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
 
 # Import Django's WSGI application
 from django.core.wsgi import get_wsgi_application

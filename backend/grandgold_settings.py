@@ -1,17 +1,14 @@
 """
-Django settings extensions for Grand Gold & Diamonds project.
+Django settings for Grand Gold & Diamonds project.
 
-This file extends Saleor's default settings with our custom configurations.
-
-Note: This file is imported AFTER saleor.settings in __init__.py,
-so all Saleor settings are already in the global namespace.
-We can now extend and override them.
+This module extends Saleor's default settings with our custom configurations.
+We import from the installed Saleor package and then apply our extensions.
 """
 
-# At this point, all settings from saleor.settings have been imported via __init__.py
-# We can now extend and override them
+# Import all settings from installed Saleor package
+from saleor.settings import *  # noqa: F403, F405
 
-# Extend INSTALLED_APPS with our custom extensions
+# Now extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
     'saleor_extensions.regions',
     'saleor_extensions.currency',
@@ -57,7 +54,7 @@ if 'DATABASE_URL' in os.environ:
         pass
 
 # Static files configuration for Railway
-STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'staticfiles')
+STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 
 # Media files - use S3 if configured
 if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
@@ -69,3 +66,4 @@ if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
     AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
     AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
     AWS_DEFAULT_ACL = 'public-read'
+
