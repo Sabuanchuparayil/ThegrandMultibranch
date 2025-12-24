@@ -615,6 +615,20 @@ STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 # Railway's nixpacks requires this setting to find the WSGI application
 WSGI_APPLICATION = 'wsgi.application'
 
+# Disable problematic plugins that require libmagic if not available
+# The DeprecatedAvataxPlugin requires libmagic which may not be available in all environments
+try:
+    # Try to import magic to see if libmagic is available
+    import magic
+    # If successful, plugins can load normally
+except ImportError:
+    # If libmagic is not available, disable plugins that require it
+    # This prevents ImportError during plugin loading
+    PLUGINS = getattr(globals(), 'PLUGINS', [])
+    # Filter out plugins that require libmagic
+    PLUGINS = [p for p in PLUGINS if 'avatax' not in str(p).lower()]
+    globals()['PLUGINS'] = PLUGINS
+
 # Media files - use S3 if configured
 if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
