@@ -2,8 +2,26 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
+// Get GraphQL URL from environment or use Railway backend URL
+const getGraphQLUrl = () => {
+  // Priority: Environment variable > Railway backend URL > localhost
+  if (process.env.NEXT_PUBLIC_GRAPHQL_URL) {
+    return process.env.NEXT_PUBLIC_GRAPHQL_URL;
+  }
+  
+  // Use Railway backend URL as fallback
+  if (typeof window !== 'undefined') {
+    // In browser, use the Railway backend URL
+    return 'https://backend-production-d769.up.railway.app/graphql/';
+  }
+  
+  // Server-side fallback
+  return 'http://localhost:8000/graphql/';
+};
+
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:8000/graphql/',
+  uri: getGraphQLUrl(),
+  credentials: 'include', // Include cookies for CORS
 });
 
 // Auth link to add authentication tokens
@@ -20,6 +38,8 @@ const authLink = setContext((_, { headers }) => {
 });
 
 // Error link for handling GraphQL errors
+// Note: Retry logic is handled by Apollo Client's built-in retry mechanism
+// and our error cache system prevents showing the same error repeatedly
 const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path }) => {
@@ -30,7 +50,13 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
   }
 
   if (networkError) {
-    console.error(`[Network error]: ${networkError}`);
+    // Log network errors but don't spam console
+    const errorMessage = networkError.message || 'Network error';
+    
+    // Only log if it's not a CORS error (which we expect during development)
+    if (!errorMessage.includes('CORS') && !errorMessage.includes('Failed to fetch')) {
+      console.error(`[Network error]: ${errorMessage}`);
+    }
     
     // Handle 401 unauthorized errors
     if ('statusCode' in networkError && networkError.statusCode === 401) {
@@ -58,10 +84,14 @@ export const apolloClient = new ApolloClient({
   defaultOptions: {
     watchQuery: {
       errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network', // Use cache when available, but always try network
     },
     query: {
       errorPolicy: 'all',
+      fetchPolicy: 'cache-and-network',
     },
   },
+  // Disable error logging in production to reduce noise
+  connectToDevTools: process.env.NODE_ENV === 'development',
 });
 

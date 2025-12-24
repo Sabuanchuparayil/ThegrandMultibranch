@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, gql } from '@apollo/client';
 import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useToastContext } from '@/components/notifications/ToastProvider';
 import { validateBranchForm, type BranchFormData } from '@/lib/validation';
 import { CREATE_BRANCH, UPDATE_BRANCH, DELETE_BRANCH } from '@/lib/graphql/mutations';
+import { useErrorCache } from '@/hooks/useErrorCache';
 
 const GET_BRANCHES = gql`
   query GetBranches {
@@ -37,7 +38,23 @@ export default function BranchesModule() {
   const { data, loading, error, refetch } = useQuery(GET_BRANCHES, {
     fetchPolicy: 'cache-and-network',
     errorPolicy: 'all',
+    notifyOnNetworkStatusChange: false, // Don't trigger loading on refetch
   });
+
+  // Error caching mechanism
+  const { shouldShowError, handleError, clearError } = useErrorCache({
+    queryName: 'GetBranches',
+    enabled: true,
+  });
+
+  // Update error cache when error changes
+  useEffect(() => {
+    if (error) {
+      handleError(error as Error);
+    } else {
+      handleError(null);
+    }
+  }, [error, handleError]);
 
   // Mock data fallback
   const mockBranches = [
@@ -47,7 +64,8 @@ export default function BranchesModule() {
   ];
 
   // Get branches from API or fallback to mock data
-  const rawBranches = error || !data?.branches
+  // Only use mock data if there's an error AND we should show it (not cached/suppressed)
+  const rawBranches = (error && shouldShowError) || !data?.branches
     ? mockBranches
     : data.branches;
 
@@ -94,8 +112,8 @@ export default function BranchesModule() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Error Banner */}
-        {error && (
+        {/* Error Banner - Only show if error is not cached/suppressed */}
+        {error && shouldShowError && (
           <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -103,11 +121,17 @@ export default function BranchesModule() {
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm text-yellow-700">
                   <strong>Backend connection error:</strong> Unable to load branches from the API. Showing sample data for demonstration purposes.
                   {error.message && <span className="block mt-1 text-xs">Error: {error.message}</span>}
                 </p>
+                <button
+                  onClick={clearError}
+                  className="mt-2 text-xs text-yellow-800 underline hover:text-yellow-900"
+                >
+                  Dismiss (errors will be cached for 5 minutes)
+                </button>
               </div>
             </div>
           </div>
