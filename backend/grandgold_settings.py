@@ -319,48 +319,48 @@ if 'INSTALLED_APPS' not in globals():
             # Try to find Saleor in sys.path directly as fallback
             # BUT exclude local /app/saleor directory - only accept site-packages locations
             saleor_found_path = None
-        backend_dir = os.path.dirname(__file__)
-        local_saleor = os.path.join(backend_dir, 'saleor')
-        
-        # #region agent log
-        _log_msg('grandgold_settings.py:237', 'Fallback: searching sys.path', {
-            'sys_path': sys.path,
-            'backend_dir': backend_dir,
-            'local_saleor': local_saleor,
-            'local_saleor_exists': os.path.exists(local_saleor)
-        }, 'D')
-        # #endregion
-        
-        for check_path in sys.path:
-            if check_path and os.path.exists(check_path):
-                saleor_check = os.path.join(check_path, 'saleor')
-                if os.path.exists(saleor_check):
-                    # CRITICAL: Exclude local saleor directory
-                    # Check if this is NOT our local saleor directory
-                    normalized_check = os.path.abspath(saleor_check).replace('\\', '/')
-                    normalized_local = os.path.abspath(local_saleor).replace('\\', '/') if os.path.exists(local_saleor) else None
-                    
-                    # CRITICAL: Only accept paths that contain 'site-packages'
-                    # This ensures we never accidentally use the local /app/saleor directory
-                    is_site_packages = 'site-packages' in check_path
-                    
-                    # #region agent log
-                    _log_msg('grandgold_settings.py:252', 'Checking path in fallback', {
-                        'check_path': check_path,
-                        'saleor_check': saleor_check,
-                        'is_site_packages': is_site_packages,
-                        'normalized_check': normalized_check,
-                        'normalized_local': normalized_local
-                    }, 'D')
-                    # #endregion
-                    
-                    if is_site_packages:
-                        saleor_found_path = check_path
-                        break
-        
-        if not saleor_found_path:
-            # Final check: try direct import to see what error we get
-            try:
+            backend_dir = os.path.dirname(__file__)
+            local_saleor = os.path.join(backend_dir, 'saleor')
+            
+            # #region agent log
+            _log_msg('grandgold_settings.py:237', 'Fallback: searching sys.path', {
+                'sys_path': sys.path,
+                'backend_dir': backend_dir,
+                'local_saleor': local_saleor,
+                'local_saleor_exists': os.path.exists(local_saleor)
+            }, 'D')
+            # #endregion
+            
+            for check_path in sys.path:
+                if check_path and os.path.exists(check_path):
+                    saleor_check = os.path.join(check_path, 'saleor')
+                    if os.path.exists(saleor_check):
+                        # CRITICAL: Exclude local saleor directory
+                        # Check if this is NOT our local saleor directory
+                        normalized_check = os.path.abspath(saleor_check).replace('\\', '/')
+                        normalized_local = os.path.abspath(local_saleor).replace('\\', '/') if os.path.exists(local_saleor) else None
+                        
+                        # CRITICAL: Only accept paths that contain 'site-packages'
+                        # This ensures we never accidentally use the local /app/saleor directory
+                        is_site_packages = 'site-packages' in check_path
+                        
+                        # #region agent log
+                        _log_msg('grandgold_settings.py:252', 'Checking path in fallback', {
+                            'check_path': check_path,
+                            'saleor_check': saleor_check,
+                            'is_site_packages': is_site_packages,
+                            'normalized_check': normalized_check,
+                            'normalized_local': normalized_local
+                        }, 'D')
+                        # #endregion
+                        
+                        if is_site_packages:
+                            saleor_found_path = check_path
+                            break
+            
+            if not saleor_found_path:
+                # Final check: try direct import to see what error we get
+                try:
                 import saleor
                 saleor_location = getattr(saleor, '__file__', None) or (getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None)
                 raise ImportError(
@@ -378,7 +378,7 @@ if 'INSTALLED_APPS' not in globals():
                     f"sys.path: {sys.path[:10]}. "
                     f"Saleor is not installed. Check Railway build logs for installation errors."
                 )
-        else:
+            else:
             # Found in sys.path, continue loading
             site_packages_path = saleor_found_path
             saleor_dir = os.path.join(site_packages_path, 'saleor')
