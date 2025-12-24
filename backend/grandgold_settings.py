@@ -41,10 +41,23 @@ try:
     # First, try to import directly - if Saleor is installed correctly, this should work
     # even if our local saleor directory exists, Python should find the installed one first
     # (site-packages comes before current directory in Python's module search path)
+    
+    # Check which saleor module we're importing from
+    import saleor
+    import saleor.settings as saleor_settings_check
+    saleor_module_path = getattr(saleor, '__file__', 'unknown')
+    saleor_settings_path = getattr(saleor_settings_check, '__file__', 'unknown')
+    
+    # #region agent log
+    _log_msg('grandgold_settings.py:35', 'Before wildcard import', {'saleor_module_path': saleor_module_path, 'saleor_settings_path': saleor_settings_path, 'has_INSTALLED_APPS_in_module': hasattr(saleor_settings_check, 'INSTALLED_APPS')}, 'A')
+    # #endregion
+    
+    # Now do the wildcard import
     from saleor.settings import *  # noqa: F403, F405
     
     # #region agent log
-    _log_msg('grandgold_settings.py:35', 'Direct import succeeded', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'globals_keys_count': len([k for k in globals().keys() if k.isupper()])}, 'A')
+    uppercase_after = [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:10]
+    _log_msg('grandgold_settings.py:42', 'After wildcard import', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'uppercase_keys': uppercase_after, 'globals_keys_count': len(uppercase_after)}, 'A')
     # #endregion
     
 except ImportError as e:
@@ -146,13 +159,24 @@ _log_msg('grandgold_settings.py:113', 'Verifying INSTALLED_APPS', {'INSTALLED_AP
 if 'INSTALLED_APPS' not in globals():
     # #region agent log
     available_uppercase = [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:20]
-    _log_msg('grandgold_settings.py:118', 'INSTALLED_APPS not found - raising error', {'available_uppercase': available_uppercase}, 'E')
+    # Try to get INSTALLED_APPS directly from the module if it exists there
+    try:
+        import saleor.settings as ss_check
+        has_in_module = hasattr(ss_check, 'INSTALLED_APPS')
+        module_path = getattr(ss_check, '__file__', 'unknown')
+    except:
+        has_in_module = False
+        module_path = 'error_checking'
+    
+    _log_msg('grandgold_settings.py:160', 'INSTALLED_APPS not found - raising error', {'available_uppercase': available_uppercase, 'has_in_module': has_in_module, 'module_path': module_path}, 'E')
     # #endregion
     
     # Include debug info in error message for Railway logs
     raise ImportError(
         f"INSTALLED_APPS not found after importing Saleor settings. "
         f"Available uppercase globals: {available_uppercase}. "
+        f"INSTALLED_APPS in module: {has_in_module}. "
+        f"Module path: {module_path}. "
         f"The Saleor package may have a different settings structure or wasn't installed correctly."
     )
 
