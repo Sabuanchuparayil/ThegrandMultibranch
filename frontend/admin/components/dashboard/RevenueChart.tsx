@@ -56,7 +56,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data, height = 300 }
             style={{ fontSize: '12px' }}
           />
           <Tooltip
-            formatter={(value: number) => formatCurrency(value, data[0]?.currency || 'GBP')}
+            formatter={(value: number | undefined) => formatCurrency(value || 0, data[0]?.currency || 'GBP')}
             contentStyle={{
               backgroundColor: 'white',
               border: '1px solid #e5e7eb',

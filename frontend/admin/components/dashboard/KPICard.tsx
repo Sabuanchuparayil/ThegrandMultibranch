@@ -16,6 +16,9 @@ export interface KPICardProps {
   loading?: boolean;
 }
 
+// Type alias for KPI data (used in arrays)
+export type KPIData = KPICardProps;
+
 const colorClasses = {
   blue: {
     bg: 'bg-blue-500',
@@ -39,7 +42,7 @@ const colorClasses = {
   },
 };
 
-export default function KPICard({
+export function KPICard({
   title,
   value,
   change,

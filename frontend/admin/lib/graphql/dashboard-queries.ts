@@ -233,7 +233,7 @@ export const GET_BRANCH_SALES_TREND = gql`
 `;
 
 export const GET_SALES_CHART_DATA = gql`
-  query GetSalesChartData($branchId: ID!, $period: String!) {
+  query GetSalesChartData($branchId: ID!, $dateFrom: DateTime!, $dateTo: DateTime!) {
     # Sales chart data for branch dashboard
     orders(
       filter: {

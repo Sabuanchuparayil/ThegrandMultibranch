@@ -41,11 +41,40 @@ export default function BranchDashboardPage() {
     onCompleted: () => setLastUpdate(new Date()),
   });
 
+  // Calculate date range from period
+  const getPeriodDates = (period: string) => {
+    const now = new Date();
+    const to = now.toISOString();
+    const from = new Date(now);
+    
+    switch (period) {
+      case '7d':
+        from.setDate(from.getDate() - 7);
+        break;
+      case '30d':
+        from.setDate(from.getDate() - 30);
+        break;
+      case '90d':
+        from.setDate(from.getDate() - 90);
+        break;
+      default:
+        from.setDate(from.getDate() - 30);
+    }
+    
+    return {
+      dateFrom: from.toISOString(),
+      dateTo: to,
+    };
+  };
+
+  const periodDates = getPeriodDates(selectedPeriod);
+
   // Fetch sales chart data for branch
   const { data: chartData } = useQuery(GET_SALES_CHART_DATA, {
     variables: {
       branchId: branchId,
-      period: selectedPeriod,
+      dateFrom: periodDates.dateFrom,
+      dateTo: periodDates.dateTo,
     },
     skip: !branchId,
     pollInterval: 60000,
@@ -153,7 +182,7 @@ export default function BranchDashboardPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {kpis.map((kpi, index) => (
-            <KPICard key={index} kpi={kpi} />
+            <KPICard key={index} {...kpi} />
           ))}
         </div>
 
