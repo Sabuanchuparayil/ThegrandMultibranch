@@ -1,9 +1,11 @@
 """
 Django settings extensions for Grand Gold & Diamonds project.
+
 This file extends Saleor's default settings with our custom configurations.
 
-Note: This file is imported after saleor.settings in __init__.py,
-so it can override and extend Saleor's default settings.
+Note: This file is imported AFTER saleor.settings in __init__.py,
+so all Saleor settings are already in the global namespace.
+We can now extend and override them.
 """
 
 # At this point, all settings from saleor.settings have been imported via __init__.py
@@ -41,15 +43,18 @@ if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  #
     except ValueError:
         MIDDLEWARE.append('saleor_extensions.audit.middleware.AuditLogMiddleware')  # noqa: F405
 
-# Railway-specific configurations (when deployed)
+# Railway-specific configurations
 import os
 
 # Database configuration (Railway provides DATABASE_URL)
 if 'DATABASE_URL' in os.environ:
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
-    }
+    try:
+        import dj_database_url
+        DATABASES = {
+            'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+        }
+    except ImportError:
+        pass
 
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'staticfiles')
