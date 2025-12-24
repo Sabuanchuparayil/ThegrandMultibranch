@@ -5,8 +5,56 @@ This module extends Saleor's default settings with our custom configurations.
 We import from the installed Saleor package and then apply our extensions.
 """
 
-# Import all settings from installed Saleor package
-from saleor.settings import *  # noqa: F403, F405
+# First, try to import Saleor settings
+# When Saleor is installed from GitHub, it provides saleor.settings module
+import sys
+
+# Store original modules to avoid conflicts
+_original_modules = {}
+if 'saleor' in sys.modules:
+    _original_modules['saleor'] = sys.modules['saleor']
+if 'saleor.settings' in sys.modules:
+    _original_modules['saleor.settings'] = sys.modules['saleor.settings']
+
+# Try to import from installed Saleor package
+try:
+    # Remove our local saleor from modules temporarily if it exists
+    if 'saleor' in sys.modules and 'saleor' not in _original_modules:
+        del sys.modules['saleor']
+    if 'saleor.settings' in sys.modules and 'saleor.settings' not in _original_modules:
+        del sys.modules['saleor.settings']
+    
+    # Import installed Saleor settings
+    import importlib
+    saleor_settings_module = importlib.import_module('saleor.settings')
+    
+    # Copy all public attributes to our namespace
+    for attr_name in dir(saleor_settings_module):
+        if not attr_name.startswith('_'):
+            try:
+                attr_value = getattr(saleor_settings_module, attr_name)
+                # Only copy module-level attributes (not methods, classes, etc.)
+                if not callable(attr_value) or attr_name.isupper():
+                    globals()[attr_name] = attr_value
+            except (AttributeError, TypeError):
+                pass
+                
+except ImportError as e:
+    # Restore original modules
+    for key, value in _original_modules.items():
+        sys.modules[key] = value
+    
+    raise ImportError(
+        f"Could not import Saleor settings from installed package: {e}. "
+        "Make sure Saleor is installed: pip install git+https://github.com/saleor/saleor.git"
+    )
+
+# Verify INSTALLED_APPS was imported
+if 'INSTALLED_APPS' not in globals():
+    raise ImportError(
+        "INSTALLED_APPS not found after importing Saleor settings. "
+        "The Saleor package may have a different settings structure."
+    )
 
 # Now extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
@@ -31,6 +79,10 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
     'saleor_extensions.audit',
     'saleor_extensions.permissions',
 ]
+
+# Ensure MIDDLEWARE exists
+if 'MIDDLEWARE' not in globals():
+    MIDDLEWARE = []
 
 # Add audit middleware after AuthenticationMiddleware
 if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  # noqa: F405
@@ -66,4 +118,3 @@ if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
     AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
     AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
     AWS_DEFAULT_ACL = 'public-read'
-
