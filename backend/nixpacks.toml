@@ -2,10 +2,11 @@
 # Saleor must be installed from GitHub, not PyPI
 
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "git"]
+nixPkgs = ["python311", "git"]
 
 [phases.install]
 cmds = [
+  "python3 -m ensurepip --upgrade",
   "python3 -m pip install --upgrade pip setuptools wheel",
   "python3 -m pip install -r requirements.txt",
   "python3 -m pip install git+https://github.com/saleor/saleor.git",
