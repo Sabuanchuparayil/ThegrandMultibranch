@@ -573,6 +573,7 @@ _log_msg('grandgold_settings.py:125', 'INSTALLED_APPS found, extending', {'curre
 
 # Now extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
+    'corsheaders',  # Add CORS headers support for frontend connections
     'saleor_extensions.regions',
     'saleor_extensions.currency',
     'saleor_extensions.branches',
@@ -598,6 +599,27 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
 # Ensure MIDDLEWARE exists
 if 'MIDDLEWARE' not in globals():
     MIDDLEWARE = []
+
+# Add CORS middleware early (before CommonMiddleware) to handle preflight requests
+# CORS middleware must be added before CommonMiddleware to intercept OPTIONS requests
+if 'corsheaders.middleware.CorsMiddleware' not in MIDDLEWARE:  # noqa: F405
+    try:
+        # Try to insert after SessionMiddleware but before CommonMiddleware
+        session_index = MIDDLEWARE.index('django.contrib.sessions.middleware.SessionMiddleware')  # noqa: F405
+        MIDDLEWARE.insert(session_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+    except ValueError:
+        # If SessionMiddleware not found, try to insert before CommonMiddleware
+        try:
+            common_index = MIDDLEWARE.index('django.middleware.common.CommonMiddleware')  # noqa: F405
+            MIDDLEWARE.insert(common_index, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+        except ValueError:
+            # If CommonMiddleware not found, insert at the beginning (after SecurityMiddleware)
+            try:
+                security_index = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')  # noqa: F405
+                MIDDLEWARE.insert(security_index + 1, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
+            except ValueError:
+                # Last resort: prepend to the beginning
+                MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')  # noqa: F405
 
 # Add audit middleware after AuthenticationMiddleware
 if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  # noqa: F405
@@ -628,6 +650,47 @@ if ',' in allowed_client_hosts:
     ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_client_hosts.split(',')]
 else:
     ALLOWED_CLIENT_HOSTS = [allowed_client_hosts] if allowed_client_hosts != '*' else ['*']
+
+# CORS Configuration for frontend connections
+# Allow requests from admin dashboard and storefront
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else [
+    'https://admin-dashboard-production-1924.up.railway.app',
+    'https://storefront-app-production-1924.up.railway.app',
+    'http://localhost:3000',  # Local development
+    'http://localhost:3001',  # Local development (alternative port)
+]
+
+# Also allow all Railway subdomains for flexibility during deployment
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://.*\.railway\.app$',
+    r'^http://localhost:\d+$',  # Allow any localhost port for development
+]
+
+# Allow credentials (cookies, authorization headers)
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow common headers
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Allow common methods
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
