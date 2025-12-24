@@ -13,7 +13,11 @@ import time
 # #region agent log
 def _log_msg(loc, msg, data, hyp):
     try:
-        log_path = '/Users/apple/Desktop/Grand Gold/The grand-Multibranch/.cursor/debug.log'
+        # Use Railway-safe log path: try .cursor/debug.log first, then /tmp/debug.log
+        log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+        log_dir = os.path.dirname(log_path)
+        if not os.path.exists(log_dir):
+            log_path = '/tmp/debug.log'  # Fallback to /tmp on Railway
         entry = {
             "timestamp": int(time.time() * 1000),
             "location": loc,
@@ -25,7 +29,8 @@ def _log_msg(loc, msg, data, hyp):
         }
         with open(log_path, 'a') as f:
             f.write(json.dumps(entry) + '\n')
-    except:
+    except Exception as log_err:
+        # Silently fail logging - don't break the import process
         pass
 # #endregion
 
@@ -50,11 +55,88 @@ for key in list(sys.modules.keys()):
     if key.startswith('saleor'):
         _local_saleor_modules[key] = sys.modules.pop(key)
 
+# Try simplest approach: temporarily prioritize site-packages in sys.path, then import
+backend_dir = os.path.dirname(__file__)
+_original_sys_path = list(sys.path)
+direct_import_succeeded = False
 try:
-    # Now import from installed package (should be in site-packages)
-    import importlib
-    import importlib.util
-    import site
+    # Reorder sys.path: put site-packages first, move /app to end
+    site_packages_paths = [p for p in sys.path if 'site-packages' in p]
+    app_paths = [p for p in sys.path if p == backend_dir or (p and backend_dir in p.replace('\\', '/'))]
+    other_paths = [p for p in sys.path if p not in site_packages_paths and p not in app_paths]
+    
+    # New order: site-packages first, then others, then /app last
+    sys.path = site_packages_paths + other_paths + app_paths
+    
+    # #region agent log
+    _log_msg('grandgold_settings.py:58', 'Reordered sys.path for import', {
+        'site_packages_paths': site_packages_paths,
+        'app_paths': app_paths,
+        'new_sys_path': sys.path[:5]
+    }, 'E')
+    # #endregion
+    
+    import saleor
+    saleor_file = getattr(saleor, '__file__', None)
+    saleor_path = getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None
+    saleor_location = saleor_file or saleor_path
+    
+    # #region agent log
+    _log_msg('grandgold_settings.py:68', 'Direct import attempt', {
+        'saleor_location': saleor_location,
+        'saleor_file': saleor_file,
+        'saleor_path': saleor_path,
+        'is_site_packages': 'site-packages' in (saleor_location or '')
+    }, 'E')
+    # #endregion
+    
+    if saleor_location and 'site-packages' in saleor_location:
+        # Saleor is installed correctly, use standard import
+        from saleor import settings as saleor_settings_module
+        
+        # Copy all uppercase attributes
+        for attr_name in dir(saleor_settings_module):
+            if attr_name.isupper() and not attr_name.startswith('_'):
+                try:
+                    globals()[attr_name] = getattr(saleor_settings_module, attr_name)
+                except (AttributeError, TypeError):
+                    pass
+        
+        # Restore original sys.path
+        sys.path = _original_sys_path
+        
+        # #region agent log
+        _log_msg('grandgold_settings.py:88', 'Direct import succeeded', {
+            'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(),
+            'saleor_location': saleor_location
+        }, 'E')
+        # #endregion
+        
+        # Success! Skip manual loading
+        direct_import_succeeded = True
+    else:
+        # Restore original sys.path before falling through
+        sys.path = _original_sys_path
+        direct_import_succeeded = False
+        raise ImportError(f"Saleor imported but location doesn't look like site-packages: {saleor_location}")
+except (ImportError, Exception) as direct_import_error:
+    # Restore original sys.path
+    sys.path = _original_sys_path
+    direct_import_succeeded = False
+    # #region agent log
+    _log_msg('grandgold_settings.py:99', 'Direct import failed, using manual loading', {
+        'error': str(direct_import_error),
+        'error_type': type(direct_import_error).__name__
+    }, 'E')
+    # #endregion
+
+# Skip manual loading if direct import already succeeded
+if 'INSTALLED_APPS' not in globals():
+    try:
+        # Now import from installed package (should be in site-packages)
+        import importlib
+        import importlib.util
+        import site
     
     # Find site-packages that contains saleor
     # Try multiple methods to find site-packages
@@ -235,13 +317,46 @@ try:
             raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
     else:
         # Try to find Saleor in sys.path directly as fallback
+        # BUT exclude local /app/saleor directory - only accept site-packages locations
         saleor_found_path = None
+        backend_dir = os.path.dirname(__file__)
+        local_saleor = os.path.join(backend_dir, 'saleor')
+        
+        # #region agent log
+        _log_msg('grandgold_settings.py:237', 'Fallback: searching sys.path', {
+            'sys_path': sys.path,
+            'backend_dir': backend_dir,
+            'local_saleor': local_saleor,
+            'local_saleor_exists': os.path.exists(local_saleor)
+        }, 'D')
+        # #endregion
+        
         for check_path in sys.path:
             if check_path and os.path.exists(check_path):
                 saleor_check = os.path.join(check_path, 'saleor')
                 if os.path.exists(saleor_check):
-                    saleor_found_path = check_path
-                    break
+                    # CRITICAL: Exclude local saleor directory
+                    # Check if this is NOT our local saleor directory
+                    normalized_check = os.path.abspath(saleor_check).replace('\\', '/')
+                    normalized_local = os.path.abspath(local_saleor).replace('\\', '/') if os.path.exists(local_saleor) else None
+                    
+                    # CRITICAL: Only accept paths that contain 'site-packages'
+                    # This ensures we never accidentally use the local /app/saleor directory
+                    is_site_packages = 'site-packages' in check_path
+                    
+                    # #region agent log
+                    _log_msg('grandgold_settings.py:252', 'Checking path in fallback', {
+                        'check_path': check_path,
+                        'saleor_check': saleor_check,
+                        'is_site_packages': is_site_packages,
+                        'normalized_check': normalized_check,
+                        'normalized_local': normalized_local
+                    }, 'D')
+                    # #endregion
+                    
+                    if is_site_packages:
+                        saleor_found_path = check_path
+                        break
         
         if not saleor_found_path:
             # Final check: try direct import to see what error we get
@@ -301,106 +416,104 @@ try:
                             pass
             else:
                 raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
-    
-except ImportError as e:
-    # #region agent log
-    _log_msg('grandgold_settings.py:39', 'Direct import failed, trying fallback', {'error': str(e)}, 'B')
-    # #endregion
-    
-    # If that fails, try to import using importlib with explicit path handling
-    try:
-        import importlib.util
-        import site
-        
-        # Find site-packages directory
-        site_packages = None
-        for path in site.getsitepackages():
-            if 'site-packages' in path:
-                saleor_path = os.path.join(path, 'saleor')
-                if os.path.exists(saleor_path):
-                    site_packages = path
-                    break
-        
+    except ImportError as e:
         # #region agent log
-        _log_msg('grandgold_settings.py:53', 'Found site-packages', {'site_packages': site_packages, 'saleor_exists': os.path.exists(os.path.join(site_packages, 'saleor')) if site_packages else False}, 'B')
+        _log_msg('grandgold_settings.py:39', 'Direct import failed, trying fallback', {'error': str(e)}, 'B')
         # #endregion
         
-        if site_packages:
-            # Load saleor.settings from site-packages explicitly
-            settings_file = os.path.join(site_packages, 'saleor', 'settings.py')
+        # If that fails, try to import using importlib with explicit path handling
+        try:
+            import importlib.util
+            import site
+            
+            # Find site-packages directory
+            site_packages = None
+            for path in site.getsitepackages():
+                if 'site-packages' in path:
+                    saleor_path = os.path.join(path, 'saleor')
+                    if os.path.exists(saleor_path):
+                        site_packages = path
+                        break
+            
             # #region agent log
-            _log_msg('grandgold_settings.py:58', 'Checking settings file', {'settings_file': settings_file, 'exists': os.path.exists(settings_file)}, 'B')
+            _log_msg('grandgold_settings.py:53', 'Found site-packages', {'site_packages': site_packages, 'saleor_exists': os.path.exists(os.path.join(site_packages, 'saleor')) if site_packages else False}, 'B')
             # #endregion
             
-            if os.path.exists(settings_file):
-                spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
-                saleor_settings_module = importlib.util.module_from_spec(spec)
-                
-                # We need to load saleor first to make saleor.settings work
-                saleor_init = os.path.join(site_packages, 'saleor', '__init__.py')
+            if site_packages:
+                # Load saleor.settings from site-packages explicitly
+                settings_file = os.path.join(site_packages, 'saleor', 'settings.py')
                 # #region agent log
-                _log_msg('grandgold_settings.py:66', 'Loading saleor module', {'saleor_init': saleor_init, 'exists': os.path.exists(saleor_init)}, 'B')
+                _log_msg('grandgold_settings.py:58', 'Checking settings file', {'settings_file': settings_file, 'exists': os.path.exists(settings_file)}, 'B')
                 # #endregion
                 
-                if os.path.exists(saleor_init):
-                    saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
-                    saleor_module = importlib.util.module_from_spec(saleor_spec)
-                    sys.modules['saleor'] = saleor_module
-                    saleor_spec.loader.exec_module(saleor_module)
-                
-                spec.loader.exec_module(saleor_settings_module)
-                sys.modules['saleor.settings'] = saleor_settings_module
-                
-                # #region agent log
-                _log_msg('grandgold_settings.py:77', 'Module loaded, checking attributes', {'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'), 'dir_attrs_count': len(dir(saleor_settings_module)), 'uppercase_attrs': [a for a in dir(saleor_settings_module) if a.isupper()][:10]}, 'C')
-                # #endregion
-                
-                # Copy all uppercase attributes
-                copied_count = 0
-                for attr_name in dir(saleor_settings_module):
-                    if attr_name.isupper() and not attr_name.startswith('_'):
-                        try:
-                            attr_value = getattr(saleor_settings_module, attr_name)
-                            globals()[attr_name] = attr_value
-                            copied_count += 1
-                            if attr_name == 'INSTALLED_APPS':
+                if os.path.exists(settings_file):
+                    spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
+                    saleor_settings_module = importlib.util.module_from_spec(spec)
+                    
+                    # We need to load saleor first to make saleor.settings work
+                    saleor_init = os.path.join(site_packages, 'saleor', '__init__.py')
+                    # #region agent log
+                    _log_msg('grandgold_settings.py:66', 'Loading saleor module', {'saleor_init': saleor_init, 'exists': os.path.exists(saleor_init)}, 'B')
+                    # #endregion
+                    
+                    if os.path.exists(saleor_init):
+                        saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+                        saleor_module = importlib.util.module_from_spec(saleor_spec)
+                        sys.modules['saleor'] = saleor_module
+                        saleor_spec.loader.exec_module(saleor_module)
+                    
+                    spec.loader.exec_module(saleor_settings_module)
+                    sys.modules['saleor.settings'] = saleor_settings_module
+                    
+                    # #region agent log
+                    _log_msg('grandgold_settings.py:77', 'Module loaded, checking attributes', {'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'), 'dir_attrs_count': len(dir(saleor_settings_module)), 'uppercase_attrs': [a for a in dir(saleor_settings_module) if a.isupper()][:10]}, 'C')
+                    # #endregion
+                    
+                    # Copy all uppercase attributes
+                    copied_count = 0
+                    for attr_name in dir(saleor_settings_module):
+                        if attr_name.isupper() and not attr_name.startswith('_'):
+                            try:
+                                attr_value = getattr(saleor_settings_module, attr_name)
+                                globals()[attr_name] = attr_value
+                                copied_count += 1
+                                if attr_name == 'INSTALLED_APPS':
+                                    # #region agent log
+                                    _log_msg('grandgold_settings.py:87', 'Copied INSTALLED_APPS', {'type': str(type(attr_value)), 'is_list': isinstance(attr_value, list)}, 'B')
+                                    # #endregion
+                            except (AttributeError, TypeError) as copy_err:
                                 # #region agent log
-                                _log_msg('grandgold_settings.py:87', 'Copied INSTALLED_APPS', {'type': str(type(attr_value)), 'is_list': isinstance(attr_value, list)}, 'B')
+                                _log_msg('grandgold_settings.py:92', 'Failed to copy attribute', {'attr': attr_name, 'error': str(copy_err)}, 'D')
                                 # #endregion
-                        except (AttributeError, TypeError) as copy_err:
-                            # #region agent log
-                            _log_msg('grandgold_settings.py:92', 'Failed to copy attribute', {'attr': attr_name, 'error': str(copy_err)}, 'D')
-                            # #endregion
-                            pass
-                
-                # #region agent log
-                _log_msg('grandgold_settings.py:96', 'Finished copying attributes', {'copied_count': copied_count, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'B')
-                # #endregion
+                                pass
+                    
+                    # #region agent log
+                    _log_msg('grandgold_settings.py:96', 'Finished copying attributes', {'copied_count': copied_count, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'B')
+                    # #endregion
+                else:
+                    raise ImportError(f"Saleor settings.py not found at {settings_file}")
             else:
-                raise ImportError(f"Saleor settings.py not found at {settings_file}")
-        else:
+                # #region agent log
+                _log_msg('grandgold_settings.py:307', 'Fallback: site-packages not found', {
+                    'site_getsitepackages': site.getsitepackages(),
+                    'sys_path': sys.path,
+                    'backend_dir': os.path.dirname(__file__),
+                    'app_venv_exists': os.path.exists('/app/.venv/lib/python3.11/site-packages'),
+                    'saleor_in_app_venv': os.path.exists('/app/.venv/lib/python3.11/site-packages/saleor') if os.path.exists('/app/.venv/lib/python3.11/site-packages') else False
+                }, 'E')
+                # #endregion
+                raise ImportError("Could not find site-packages directory")
+        except Exception as e2:
             # #region agent log
-            _log_msg('grandgold_settings.py:307', 'Fallback: site-packages not found', {
-                'site_getsitepackages': site.getsitepackages(),
-                'sys_path': sys.path,
-                'backend_dir': os.path.dirname(__file__),
-                'app_venv_exists': os.path.exists('/app/.venv/lib/python3.11/site-packages'),
-                'saleor_in_app_venv': os.path.exists('/app/.venv/lib/python3.11/site-packages/saleor') if os.path.exists('/app/.venv/lib/python3.11/site-packages') else False
-            }, 'E')
+            _log_msg('grandgold_settings.py:104', 'Fallback import also failed', {'error': str(e2)}, 'E')
             # #endregion
-            raise ImportError("Could not find site-packages directory")
             
-    except Exception as e2:
-        # #region agent log
-        _log_msg('grandgold_settings.py:104', 'Fallback import also failed', {'error': str(e2)}, 'E')
-        # #endregion
-        
-        # If all else fails, check if Saleor is even installed
-        raise ImportError(
-            f"Could not import Saleor settings. Original error: {e}. "
-            f"Secondary attempt error: {e2}. "
-            "Make sure Saleor is installed: pip install git+https://github.com/saleor/saleor.git"
-        )
+            # If all else fails, check if Saleor is even installed
+            raise ImportError(
+                f"Could not import Saleor settings. Original error: {e}. "
+                f"Secondary attempt error: {e2}. "
+                "Make sure Saleor is installed: pip install git+https://github.com/saleor/saleor.git"
+            )
 
 # #region agent log
 _log_msg('grandgold_settings.py:113', 'Verifying INSTALLED_APPS', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'globals_uppercase': [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:15]}, 'A')
