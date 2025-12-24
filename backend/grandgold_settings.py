@@ -683,8 +683,8 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://.*\.railway\.app$',  # Match any Railway subdomain (https)
     r'^http://.*\.railway\.app$',   # Match any Railway subdomain (http, for testing)
-    r'^http://localhost:\d+$',      # Allow any localhost port for development
-    r'^http://127\.0\.0\.1:\d+$',   # Allow 127.0.0.1 for development
+    r'^http://localhost(:\d+)?$',   # Allow localhost with optional port (default port 80 doesn't include :80)
+    r'^http://127\.0\.0\.1(:\d+)?$', # Allow 127.0.0.1 with optional port (default port 80 doesn't include :80)
 ]
 
 # Explicit origins (works alongside regex patterns)
