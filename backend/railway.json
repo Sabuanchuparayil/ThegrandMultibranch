@@ -5,7 +5,7 @@
     "buildCommand": "python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip setuptools wheel && pip install -r requirements.txt && pip install git+https://github.com/saleor/saleor.git"
   },
   "deploy": {
-    "startCommand": "gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120",
+    "startCommand": "bash -c 'source .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120'",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
