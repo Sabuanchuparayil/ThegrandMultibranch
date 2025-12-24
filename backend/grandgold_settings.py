@@ -145,7 +145,73 @@ try:
         else:
             raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
     else:
-        raise ImportError("Could not find site-packages directory containing Saleor")
+        # Try to find Saleor in sys.path directly as fallback
+        saleor_found_path = None
+        for check_path in sys.path:
+            if check_path and os.path.exists(check_path):
+                saleor_check = os.path.join(check_path, 'saleor')
+                if os.path.exists(saleor_check):
+                    saleor_found_path = check_path
+                    break
+        
+        if not saleor_found_path:
+            # Final check: try direct import to see what error we get
+            try:
+                import saleor
+                saleor_location = getattr(saleor, '__file__', None) or (getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None)
+                raise ImportError(
+                    f"Could not find site-packages directory containing Saleor. "
+                    f"site.getsitepackages(): {all_site_packages}. "
+                    f"sys.path site-packages: {sys_site_packages}. "
+                    f"Saleor module location: {saleor_location}. "
+                    f"Saleor may not be installed correctly. Check Railway build logs."
+                )
+            except ImportError:
+                raise ImportError(
+                    f"Could not find site-packages directory containing Saleor. "
+                    f"site.getsitepackages(): {all_site_packages}. "
+                    f"sys.path site-packages: {sys_site_packages}. "
+                    f"sys.path: {sys.path[:10]}. "
+                    f"Saleor is not installed. Check Railway build logs for installation errors."
+                )
+        else:
+            # Found in sys.path, continue loading
+            site_packages_path = saleor_found_path
+            saleor_dir = os.path.join(site_packages_path, 'saleor')
+            settings_file = os.path.join(saleor_dir, 'settings.py')
+            settings_package = os.path.join(saleor_dir, 'settings')
+            
+            # Load saleor package first
+            saleor_init = os.path.join(saleor_dir, '__init__.py')
+            if os.path.exists(saleor_init):
+                saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+                saleor_module = importlib.util.module_from_spec(saleor_spec)
+                sys.modules['saleor'] = saleor_module
+                saleor_spec.loader.exec_module(saleor_module)
+            
+            saleor_settings_module = None
+            if os.path.exists(settings_file):
+                spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
+                saleor_settings_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(saleor_settings_module)
+                sys.modules['saleor.settings'] = saleor_settings_module
+            elif os.path.isdir(settings_package):
+                settings_init = os.path.join(settings_package, '__init__.py')
+                if os.path.exists(settings_init):
+                    spec = importlib.util.spec_from_file_location('saleor.settings', settings_init)
+                    saleor_settings_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(saleor_settings_module)
+                    sys.modules['saleor.settings'] = saleor_settings_module
+            
+            if saleor_settings_module:
+                for attr_name in dir(saleor_settings_module):
+                    if attr_name.isupper() and not attr_name.startswith('_'):
+                        try:
+                            globals()[attr_name] = getattr(saleor_settings_module, attr_name)
+                        except (AttributeError, TypeError):
+                            pass
+            else:
+                raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
     
 except ImportError as e:
     # #region agent log
