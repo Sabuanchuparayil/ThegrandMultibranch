@@ -43,9 +43,23 @@ export default function BranchesModule() {
     { id: '3', name: 'Mumbai - Bandra', code: 'BOM-001', region: { name: 'India', code: 'IN' }, addressLine1: '789 Hill Road', city: 'Mumbai', country: 'India', phone: '+91 22 1234 5678', email: 'bandra@grandgold.com', isActive: true, canShip: true, canClickCollect: false },
   ];
 
-  const branches = error || !data?.branches
-    ? mockBranches.filter(b => !searchTerm || b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.code.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Get branches from API or fallback to mock data
+  const rawBranches = error || !data?.branches
+    ? mockBranches
     : data.branches;
+
+  // Apply client-side filtering to both API and mock data
+  const branches = rawBranches.filter((branch: any) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const name = branch.name?.toLowerCase() || '';
+      const code = branch.code?.toLowerCase() || '';
+      if (!name.includes(searchLower) && !code.includes(searchLower)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   const handleEdit = (branch: any) => {
     setEditingBranch(branch);

@@ -51,12 +51,28 @@ export default function OrdersModule() {
     { id: '3', number: 'ORD-003', status: 'PARTIALLY_FULFILLED', total: { gross: { amount: 320000, currency: 'GBP' } }, user: { email: 'customer3@example.com' }, created: new Date(Date.now() - 172800000).toISOString() },
   ];
 
-  const orders = error || !data?.orders?.edges 
-    ? mockOrders.filter(order => 
-        (statusFilter === 'all' || order.status === statusFilter) &&
-        (!searchTerm || order.number.toLowerCase().includes(searchTerm.toLowerCase()) || order.user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
+  // Get orders from API or fallback to mock data
+  const rawOrders = error || !data?.orders?.edges 
+    ? mockOrders
     : data.orders.edges.map((edge: any) => edge.node);
+
+  // Apply client-side filtering to both API and mock data
+  const orders = rawOrders.filter((order: any) => {
+    // Status filter
+    if (statusFilter !== 'all' && order.status !== statusFilter) {
+      return false;
+    }
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const orderNumber = order.number?.toLowerCase() || '';
+      const customerEmail = order.user?.email?.toLowerCase() || '';
+      if (!orderNumber.includes(searchLower) && !customerEmail.includes(searchLower)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   const statusColors: Record<string, string> = {
     FULFILLED: 'bg-green-100 text-green-800',

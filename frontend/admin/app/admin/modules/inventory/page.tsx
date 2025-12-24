@@ -52,14 +52,32 @@ export default function InventoryModule() {
     { id: '3', quantity: 25, availableQuantity: 20, reservedQuantity: 5, isLowStock: false, productVariant: { id: '3', name: 'Medium', sku: 'SB-M', product: { name: 'Silver Bracelet' } }, branch: { id: '2', name: 'Dubai - Marina', code: 'DXB-001' } },
   ];
 
-  let inventoryItems = error || !data?.branchInventory 
-    ? mockInventory.filter(item => {
-        if (selectedBranch && item.branch.id !== selectedBranch) return false;
-        if (lowStockOnly && !item.isLowStock) return false;
-        if (searchTerm && !item.productVariant.sku.toLowerCase().includes(searchTerm.toLowerCase()) && !item.productVariant.product.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-        return true;
-      })
+  // Get inventory from API or fallback to mock data
+  const rawInventory = error || !data?.branchInventory 
+    ? mockInventory
     : data.branchInventory;
+
+  // Apply client-side filtering to both API and mock data
+  const inventoryItems = rawInventory.filter((item: any) => {
+    // Branch filter
+    if (selectedBranch && item.branch?.id !== selectedBranch) {
+      return false;
+    }
+    // Low stock filter
+    if (lowStockOnly && !item.isLowStock) {
+      return false;
+    }
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const sku = item.productVariant?.sku?.toLowerCase() || '';
+      const productName = item.productVariant?.product?.name?.toLowerCase() || '';
+      if (!sku.includes(searchLower) && !productName.includes(searchLower)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

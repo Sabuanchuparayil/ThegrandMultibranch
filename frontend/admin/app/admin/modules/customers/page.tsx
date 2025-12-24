@@ -40,9 +40,25 @@ export default function CustomersModule() {
     { id: '3', email: 'mike.johnson@example.com', firstName: 'Mike', lastName: 'Johnson', isActive: false, dateJoined: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() },
   ];
 
-  const customers = error || !data?.users?.edges
-    ? mockCustomers.filter(c => !searchTerm || c.email.toLowerCase().includes(searchTerm.toLowerCase()) || `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Get customers from API or fallback to mock data
+  const rawCustomers = error || !data?.users?.edges
+    ? mockCustomers
     : data.users.edges.map((edge: any) => edge.node);
+
+  // Apply client-side filtering to both API and mock data
+  const customers = rawCustomers.filter((customer: any) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const email = customer.email?.toLowerCase() || '';
+      const firstName = customer.firstName?.toLowerCase() || '';
+      const lastName = customer.lastName?.toLowerCase() || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (!email.includes(searchLower) && !fullName.includes(searchLower)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

@@ -53,9 +53,23 @@ export default function ProductsModule() {
     { id: '3', name: 'Silver Bracelet', slug: 'silver-bracelet', description: 'Classic silver bracelet', isPublished: false, variants: [{ id: '3', name: 'Medium', sku: 'SB-M', price: { amount: 120000, currency: 'GBP' } }] },
   ];
 
-  const products = error || !data?.products?.edges
-    ? mockProducts.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Get products from API or fallback to mock data
+  const rawProducts = error || !data?.products?.edges
+    ? mockProducts
     : data.products.edges.map((edge: any) => edge.node);
+
+  // Apply client-side filtering to both API and mock data
+  const products = rawProducts.filter((product: any) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const name = product.name?.toLowerCase() || '';
+      const description = product.description?.toLowerCase() || '';
+      if (!name.includes(searchLower) && !description.includes(searchLower)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
