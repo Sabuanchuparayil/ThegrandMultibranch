@@ -20,10 +20,12 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   HomeIcon,
+  PresentationChartLineIcon,
 } from '@heroicons/react/24/outline';
 
 const modules = [
   { href: '/admin', label: 'Dashboard', icon: HomeIcon },
+  { href: '/admin/dashboard', label: 'Analytics Dashboards', icon: PresentationChartLineIcon },
   { href: '/admin/modules/branches', label: 'Branches', icon: BuildingStorefrontIcon },
   { href: '/admin/modules/inventory', label: 'Inventory', icon: CubeIcon },
   { href: '/admin/modules/products', label: 'Products', icon: ShoppingBagIcon },
