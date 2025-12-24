@@ -7,9 +7,26 @@ We import from the installed Saleor package and then apply our extensions.
 
 import sys
 import os
+import json
+import time
 
 # #region agent log
-_log_msg = lambda loc, msg, data, hyp: open('/Users/apple/Desktop/Grand Gold/The grand-Multibranch/.cursor/debug.log', 'a').write(f'{{"timestamp":{os.times().elapsed},"location":"{loc}","message":"{msg}","data":{repr(data)},"sessionId":"debug-session","runId":"initial","hypothesisId":"{hyp}"}}\n')
+def _log_msg(loc, msg, data, hyp):
+    try:
+        log_path = '/Users/apple/Desktop/Grand Gold/The grand-Multibranch/.cursor/debug.log'
+        entry = {
+            "timestamp": int(time.time() * 1000),
+            "location": loc,
+            "message": msg,
+            "data": data,
+            "sessionId": "debug-session",
+            "runId": "initial",
+            "hypothesisId": hyp
+        }
+        with open(log_path, 'a') as f:
+            f.write(json.dumps(entry) + '\n')
+    except:
+        pass
 # #endregion
 
 # We need to import Saleor from the installed package, not our local saleor directory
