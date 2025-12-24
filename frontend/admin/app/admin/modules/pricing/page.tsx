@@ -176,7 +176,7 @@ function GoldRateFormModal({ rate, onClose, onSuccess }: any) {
   const [formData, setFormData] = useState({
     region: rate?.region || '',
     metal: rate?.metal || 'Gold 22K',
-    rate: rate?.rate || '',
+    rate: rate?.rate || 0,
     date: rate?.date || new Date().toISOString().split('T')[0],
     status: rate?.status || 'Active',
   });
@@ -237,7 +237,7 @@ function GoldRateFormModal({ rate, onClose, onSuccess }: any) {
                 step="0.01"
                 required
                 value={formData.rate}
-                onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -332,7 +332,7 @@ function MakingChargeFormModal({ onClose, onSuccess }: any) {
                 step="0.01"
                 required
                 value={formData.percentage}
-                onChange={(e) => setFormData({ ...formData, percentage: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, percentage: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -344,7 +344,7 @@ function MakingChargeFormModal({ onClose, onSuccess }: any) {
                 step="0.01"
                 required
                 value={formData.fixedAmount}
-                onChange={(e) => setFormData({ ...formData, fixedAmount: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, fixedAmount: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -356,7 +356,7 @@ function MakingChargeFormModal({ onClose, onSuccess }: any) {
                 type="number"
                 step="0.01"
                 value={formData.minCharge}
-                onChange={(e) => setFormData({ ...formData, minCharge: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, minCharge: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -366,7 +366,7 @@ function MakingChargeFormModal({ onClose, onSuccess }: any) {
                 type="number"
                 step="0.01"
                 value={formData.maxCharge}
-                onChange={(e) => setFormData({ ...formData, maxCharge: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, maxCharge: parseFloat(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -398,7 +398,7 @@ function PricingOverrideFormModal({ onClose, onSuccess }: any) {
     branchId: '',
     regionId: '',
     productId: '',
-    overrideType: 'percentage', // percentage or fixed
+    overrideType: 'percentage' as 'percentage' | 'fixed',
     value: 0,
   });
 
@@ -479,7 +479,7 @@ function PricingOverrideFormModal({ onClose, onSuccess }: any) {
               step="0.01"
               required
               value={formData.value}
-              onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

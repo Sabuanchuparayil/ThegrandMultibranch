@@ -671,12 +671,17 @@ else:
 
 # CORS Configuration for frontend connections
 # Allow requests from admin dashboard and storefront
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else [
-    'https://admin-dashboard-production-1924.up.railway.app',
-    'https://storefront-app-production-1924.up.railway.app',
-    'http://localhost:3000',  # Local development
-    'http://localhost:3001',  # Local development (alternative port)
-]
+cors_allowed_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_allowed_origins_env:
+    # Split and strip whitespace from each origin (consistent with ALLOWED_CLIENT_HOSTS)
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_allowed_origins_env.split(',') if origin.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        'https://admin-dashboard-production-1924.up.railway.app',
+        'https://storefront-app-production-1924.up.railway.app',
+        'http://localhost:3000',  # Local development
+        'http://localhost:3001',  # Local development (alternative port)
+    ]
 
 # Also allow all Railway subdomains for flexibility during deployment
 CORS_ALLOWED_ORIGIN_REGEXES = [
