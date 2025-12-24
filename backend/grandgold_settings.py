@@ -46,6 +46,17 @@ except Exception as e:
     _log_msg('grandgold_settings.py:36', 'Django import failed', {'error': str(e)}, 'A')
 # #endregion
 
+# CRITICAL: Set ALLOWED_CLIENT_HOSTS before importing Saleor settings
+# Saleor's settings.py checks for this during import and raises ImproperlyConfigured if missing
+if 'ALLOWED_CLIENT_HOSTS' not in os.environ:
+    # Set default value in environment so Saleor's settings.py can find it
+    if 'ALLOWED_HOSTS' in os.environ:
+        # Use ALLOWED_HOSTS if provided
+        os.environ['ALLOWED_CLIENT_HOSTS'] = os.environ.get('ALLOWED_HOSTS', '*')
+    else:
+        # Default: allow all origins (for development/preview)
+        os.environ['ALLOWED_CLIENT_HOSTS'] = '*'
+
 # We need to import Saleor from the installed package, not our local saleor directory
 # Our local backend/saleor/ directory is interfering with the import
 # Strategy: Temporarily remove local saleor from sys.modules and force import from site-packages
@@ -610,23 +621,13 @@ if 'DATABASE_URL' in os.environ:
 
 # ALLOWED_CLIENT_HOSTS configuration (required by Saleor when DEBUG=False)
 # This is separate from ALLOWED_HOSTS - it's for GraphQL client origins
-if 'ALLOWED_CLIENT_HOSTS' not in os.environ:
-    # Set default based on ALLOWED_HOSTS or Railway domain
-    if 'ALLOWED_HOSTS' in os.environ:
-        # Use ALLOWED_HOSTS if provided
-        allowed_hosts = os.environ.get('ALLOWED_HOSTS', '').split(',')
-        ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_hosts if host.strip()]
-    else:
-        # Default: allow all origins (for development/preview)
-        # In production, set ALLOWED_CLIENT_HOSTS explicitly
-        ALLOWED_CLIENT_HOSTS = ['*']
+# Note: We already set this in os.environ above before importing Saleor settings
+# Now we set it as a Django setting variable
+allowed_client_hosts = os.environ.get('ALLOWED_CLIENT_HOSTS', '*')
+if ',' in allowed_client_hosts:
+    ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_client_hosts.split(',')]
 else:
-    # Use environment variable if provided
-    allowed_client_hosts = os.environ.get('ALLOWED_CLIENT_HOSTS', '*')
-    if ',' in allowed_client_hosts:
-        ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_client_hosts.split(',')]
-    else:
-        ALLOWED_CLIENT_HOSTS = [allowed_client_hosts] if allowed_client_hosts != '*' else ['*']
+    ALLOWED_CLIENT_HOSTS = [allowed_client_hosts] if allowed_client_hosts != '*' else ['*']
 
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
