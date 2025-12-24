@@ -9,6 +9,7 @@ cmds = [
   "pip install --upgrade pip setuptools wheel",
   "pip install -r requirements.txt",
   "pip install git+https://github.com/saleor/saleor.git",
+  "python -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
 ]
 
 [phases.build]
