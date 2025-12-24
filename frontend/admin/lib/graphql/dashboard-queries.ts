@@ -232,6 +232,31 @@ export const GET_BRANCH_SALES_TREND = gql`
   }
 `;
 
+export const GET_SALES_CHART_DATA = gql`
+  query GetSalesChartData($branchId: ID!, $period: String!) {
+    # Sales chart data for branch dashboard
+    orders(
+      filter: {
+        created: { gte: $dateFrom, lte: $dateTo }
+      }
+      first: 1000
+    ) {
+      edges {
+        node {
+          id
+          total {
+            gross {
+              amount
+              currency
+            }
+          }
+          created
+        }
+      }
+    }
+  }
+`;
+
 export const GET_BRANCH_STOCK_MOVEMENTS = gql`
   query GetBranchStockMovements($branchId: ID!, $limit: Int!) {
     stockMovements(branchId: $branchId, limit: $limit) {

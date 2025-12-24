@@ -3,6 +3,8 @@
  * Common layout for all dashboard pages
  */
 
+'use client';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 

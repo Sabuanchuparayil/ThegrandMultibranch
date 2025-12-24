@@ -14,7 +14,7 @@ import {
   GET_BRANCH_KPIS,
   GET_SALES_CHART_DATA,
   GET_TOP_PRODUCTS,
-  GET_INVENTORY_STATUS,
+  GET_BRANCH_INVENTORY_STATUS,
 } from '@/lib/graphql/dashboard-queries';
 
 export default function BranchDashboardPage() {
@@ -52,7 +52,7 @@ export default function BranchDashboardPage() {
   });
 
   // Fetch inventory status for branch
-  const { data: inventoryData } = useQuery(GET_INVENTORY_STATUS, {
+  const { data: inventoryData } = useQuery(GET_BRANCH_INVENTORY_STATUS, {
     variables: {
       branchId: branchId,
     },
