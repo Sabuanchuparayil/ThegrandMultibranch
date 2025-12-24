@@ -42,23 +42,40 @@ try:
     # even if our local saleor directory exists, Python should find the installed one first
     # (site-packages comes before current directory in Python's module search path)
     
-    # Check which saleor module we're importing from
+    # Check which saleor module we're importing from BEFORE wildcard import
     import saleor
     import saleor.settings as saleor_settings_check
     saleor_module_path = getattr(saleor, '__file__', 'unknown')
     saleor_settings_path = getattr(saleor_settings_check, '__file__', 'unknown')
     
     # #region agent log
-    _log_msg('grandgold_settings.py:35', 'Before wildcard import', {'saleor_module_path': saleor_module_path, 'saleor_settings_path': saleor_settings_path, 'has_INSTALLED_APPS_in_module': hasattr(saleor_settings_check, 'INSTALLED_APPS')}, 'A')
+    _log_msg('grandgold_settings.py:40', 'Before wildcard import', {'saleor_module_path': saleor_module_path, 'saleor_settings_path': saleor_settings_path, 'has_INSTALLED_APPS_in_module': hasattr(saleor_settings_check, 'INSTALLED_APPS')}, 'A')
     # #endregion
+    
+    # If we're importing from local directory (not site-packages), that's a problem
+    is_local = '/app/' in saleor_settings_path and 'site-packages' not in saleor_settings_path
     
     # Now do the wildcard import
     from saleor.settings import *  # noqa: F403, F405
     
     # #region agent log
     uppercase_after = [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:10]
-    _log_msg('grandgold_settings.py:42', 'After wildcard import', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'uppercase_keys': uppercase_after, 'globals_keys_count': len(uppercase_after)}, 'A')
+    _log_msg('grandgold_settings.py:50', 'After wildcard import', {'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals(), 'uppercase_keys': uppercase_after, 'is_local': is_local}, 'A')
     # #endregion
+    
+    # If wildcard import didn't work (no uppercase attrs) but module has them, copy manually
+    if not uppercase_after and hasattr(saleor_settings_check, 'INSTALLED_APPS'):
+        # #region agent log
+        _log_msg('grandgold_settings.py:55', 'Wildcard import failed, manually copying attributes', {'module_has_attrs': len([a for a in dir(saleor_settings_check) if a.isupper()])}, 'A')
+        # #endregion
+        
+        # Manually copy all uppercase attributes
+        for attr_name in dir(saleor_settings_check):
+            if attr_name.isupper() and not attr_name.startswith('_'):
+                try:
+                    globals()[attr_name] = getattr(saleor_settings_check, attr_name)
+                except (AttributeError, TypeError):
+                    pass
     
 except ImportError as e:
     # #region agent log
