@@ -145,12 +145,15 @@ _log_msg('grandgold_settings.py:113', 'Verifying INSTALLED_APPS', {'INSTALLED_AP
 # Verify INSTALLED_APPS was imported
 if 'INSTALLED_APPS' not in globals():
     # #region agent log
-    _log_msg('grandgold_settings.py:118', 'INSTALLED_APPS not found - raising error', {'available_uppercase': [k for k in globals().keys() if k.isupper()][:20]}, 'E')
+    available_uppercase = [k for k in globals().keys() if k.isupper() and not k.startswith('_')][:20]
+    _log_msg('grandgold_settings.py:118', 'INSTALLED_APPS not found - raising error', {'available_uppercase': available_uppercase}, 'E')
     # #endregion
     
+    # Include debug info in error message for Railway logs
     raise ImportError(
-        "INSTALLED_APPS not found after importing Saleor settings. "
-        "The Saleor package may have a different settings structure or wasn't installed correctly."
+        f"INSTALLED_APPS not found after importing Saleor settings. "
+        f"Available uppercase globals: {available_uppercase}. "
+        f"The Saleor package may have a different settings structure or wasn't installed correctly."
     )
 
 # #region agent log
