@@ -8,97 +8,75 @@ We import from the installed Saleor package and then apply our extensions.
 import sys
 import os
 
-# Critical: Ensure we import from installed package, not our local saleor directory
-# Remove local saleor from sys.modules and sys.path to force import from site-packages
-_backend_dir = os.path.dirname(os.path.abspath(__file__))
-_local_saleor_path = os.path.join(_backend_dir, 'saleor')
-
-# Remove local saleor directory from sys.path if it's there
-if _backend_dir in sys.path:
-    sys.path.remove(_backend_dir)
-
-# Temporarily remove any saleor modules from sys.modules
-_local_modules = {}
-for key in list(sys.modules.keys()):
-    if key.startswith('saleor'):
-        _local_modules[key] = sys.modules.pop(key)
+# We need to import Saleor from the installed package, not our local saleor directory
+# Instead of removing backend from sys.path (which breaks everything), we'll use a different strategy:
+# Try importing directly and handle the conflict if it occurs
 
 try:
-    # Now import from installed Saleor package
-    import importlib
+    # First, try to import directly - if Saleor is installed correctly, this should work
+    # even if our local saleor directory exists, Python should find the installed one first
+    # (site-packages comes before current directory in Python's module search path)
+    from saleor.settings import *  # noqa: F403, F405
     
-    # Import the installed Saleor settings module
-    # This will now find it in site-packages, not our local directory
-    saleor_settings_module = importlib.import_module('saleor.settings')
-    
-    # Copy all uppercase attributes (Django settings are uppercase)
-    # Also copy some important non-uppercase attributes that Saleor might use
-    for attr_name in dir(saleor_settings_module):
-        if attr_name.startswith('_'):
-            continue
-        
-        try:
-            attr_value = getattr(saleor_settings_module, attr_name)
-            
-            # Copy all uppercase attributes (these are Django settings)
-            if attr_name.isupper():
-                globals()[attr_name] = attr_value
-            # Also handle special cases if needed
-            elif attr_name in ('default_settings', 'settings', 'SETTINGS'):
-                # Some Saleor versions might use these
-                globals()[attr_name] = attr_value
-        except (AttributeError, TypeError):
-            continue
-    
-    # Explicitly check for and copy INSTALLED_APPS if it exists
-    if hasattr(saleor_settings_module, 'INSTALLED_APPS'):
-        INSTALLED_APPS = getattr(saleor_settings_module, 'INSTALLED_APPS')
-        globals()['INSTALLED_APPS'] = INSTALLED_APPS
-    
-    # Explicitly check for and copy MIDDLEWARE if it exists
-    if hasattr(saleor_settings_module, 'MIDDLEWARE'):
-        MIDDLEWARE = getattr(saleor_settings_module, 'MIDDLEWARE')
-        globals()['MIDDLEWARE'] = MIDDLEWARE
-        
 except ImportError as e:
-    # Restore local modules if import failed
-    for key, value in _local_modules.items():
-        sys.modules[key] = value
-    # Restore backend dir to path
-    if _backend_dir not in sys.path:
-        sys.path.insert(0, _backend_dir)
-    
-    raise ImportError(
-        f"Could not import Saleor settings from installed package: {e}. "
-        "Make sure Saleor is installed: pip install git+https://github.com/saleor/saleor.git"
-    )
-finally:
-    # Always restore backend dir to path (we need it for our extensions)
-    if _backend_dir not in sys.path:
-        sys.path.insert(0, _backend_dir)
+    # If that fails, try to import using importlib with explicit path handling
+    try:
+        import importlib.util
+        import site
+        
+        # Find site-packages directory
+        site_packages = None
+        for path in site.getsitepackages():
+            if 'site-packages' in path:
+                saleor_path = os.path.join(path, 'saleor')
+                if os.path.exists(saleor_path):
+                    site_packages = path
+                    break
+        
+        if site_packages:
+            # Load saleor.settings from site-packages explicitly
+            settings_file = os.path.join(site_packages, 'saleor', 'settings.py')
+            if os.path.exists(settings_file):
+                spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
+                saleor_settings_module = importlib.util.module_from_spec(spec)
+                
+                # We need to load saleor first to make saleor.settings work
+                saleor_init = os.path.join(site_packages, 'saleor', '__init__.py')
+                if os.path.exists(saleor_init):
+                    saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+                    saleor_module = importlib.util.module_from_spec(saleor_spec)
+                    sys.modules['saleor'] = saleor_module
+                    saleor_spec.loader.exec_module(saleor_module)
+                
+                spec.loader.exec_module(saleor_settings_module)
+                sys.modules['saleor.settings'] = saleor_settings_module
+                
+                # Copy all uppercase attributes
+                for attr_name in dir(saleor_settings_module):
+                    if attr_name.isupper() and not attr_name.startswith('_'):
+                        try:
+                            globals()[attr_name] = getattr(saleor_settings_module, attr_name)
+                        except (AttributeError, TypeError):
+                            pass
+            else:
+                raise ImportError(f"Saleor settings.py not found at {settings_file}")
+        else:
+            raise ImportError("Could not find site-packages directory")
+            
+    except Exception as e2:
+        # If all else fails, check if Saleor is even installed
+        raise ImportError(
+            f"Could not import Saleor settings. Original error: {e}. "
+            f"Secondary attempt error: {e2}. "
+            "Make sure Saleor is installed: pip install git+https://github.com/saleor/saleor.git"
+        )
 
 # Verify INSTALLED_APPS was imported
 if 'INSTALLED_APPS' not in globals():
-    # Last resort: try to inspect the module more carefully
-    try:
-        import saleor.settings as ss
-        if hasattr(ss, 'INSTALLED_APPS'):
-            INSTALLED_APPS = ss.INSTALLED_APPS
-            globals()['INSTALLED_APPS'] = INSTALLED_APPS
-        else:
-            # List what attributes ARE available for debugging
-            available = [a for a in dir(ss) if a.isupper()]
-            raise ImportError(
-                f"INSTALLED_APPS not found in Saleor settings. "
-                f"Available uppercase attributes: {available[:10]}. "
-                "The Saleor package may have a different settings structure."
-            )
-    except Exception as e2:
-        raise ImportError(
-            f"INSTALLED_APPS not found after importing Saleor settings. "
-            f"Import error: {e2}. "
-            "The Saleor package may have a different settings structure."
-        )
+    raise ImportError(
+        "INSTALLED_APPS not found after importing Saleor settings. "
+        "The Saleor package may have a different settings structure or wasn't installed correctly."
+    )
 
 # Now extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
