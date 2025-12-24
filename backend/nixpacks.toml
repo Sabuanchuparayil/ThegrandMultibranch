@@ -9,8 +9,10 @@ nixPkgs = ["python312", "git"]
 cmds = [
   "python3 -m venv .venv",
   "source .venv/bin/activate && pip install --upgrade pip setuptools wheel",
-  "source .venv/bin/activate && pip install -r requirements.txt",
+  # Install Saleor FIRST to get its dependency versions
   "source .venv/bin/activate && pip install git+https://github.com/saleor/saleor.git",
+  # Then install our additional requirements (will use compatible versions)
+  "source .venv/bin/activate && pip install -r requirements.txt",
   "source .venv/bin/activate && python -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
 ]
 
