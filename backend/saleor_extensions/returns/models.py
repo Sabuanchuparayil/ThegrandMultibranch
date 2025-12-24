@@ -94,14 +94,13 @@ class ReturnRequest(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['rma_number']),
-            models.Index(fields=['order']),
+            models.Index(fields=['order_id']),
             models.Index(fields=['branch', 'status', 'created_at']),
             models.Index(fields=['customer', 'status']),
         ]
     
     def __str__(self):
-        order_id = str(self.order.id) if hasattr(self.order, 'id') else 'N/A'
-        return f"RMA {self.rma_number} - Order {order_id} ({self.status})"
+        return f"RMA {self.rma_number} - Order {self.order_id} ({self.status})"
 
 
 class ReturnItem(models.Model):

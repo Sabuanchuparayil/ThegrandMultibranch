@@ -119,7 +119,7 @@ class PaymentTransaction(models.Model):
         verbose_name_plural = 'Payment Transactions'
         ordering = ['-initiated_at']
         indexes = [
-            models.Index(fields=['order']),
+            models.Index(fields=['order_id']),
             models.Index(fields=['transaction_id']),
             models.Index(fields=['gateway', 'status', 'initiated_at']),
             models.Index(fields=['status', 'initiated_at']),
