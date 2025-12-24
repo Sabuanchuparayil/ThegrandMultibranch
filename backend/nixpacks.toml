@@ -1,5 +1,6 @@
 # Railway Nixpacks configuration for Saleor installation
 # Saleor must be installed from GitHub, not PyPI
+# Using virtual environment to avoid Nix externally-managed-environment restrictions
 
 [phases.setup]
 nixPkgs = ["python311", "git"]
