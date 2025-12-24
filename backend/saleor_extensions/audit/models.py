@@ -61,7 +61,7 @@ class AuditLog(models.Model):
         verbose_name_plural = 'Audit Logs'
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['user_id', 'timestamp']),
             models.Index(fields=['action', 'timestamp']),
             models.Index(fields=['model_name', 'timestamp']),
             models.Index(fields=['branch_id', 'timestamp']),
