@@ -2,20 +2,22 @@
 # Saleor must be installed from GitHub, not PyPI
 
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.setuptools", "python311Packages.wheel", "git"]
+nixPkgs = ["python311", "git"]
 
 [phases.install]
 cmds = [
-  "python3 -m pip install --upgrade pip setuptools wheel --user",
-  "python3 -m pip install -r requirements.txt --user",
-  "python3 -m pip install git+https://github.com/saleor/saleor.git --user",
-  "python3 -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
+  "python3 -m venv .venv",
+  "source .venv/bin/activate",
+  "pip install --upgrade pip setuptools wheel",
+  "pip install -r requirements.txt",
+  "pip install git+https://github.com/saleor/saleor.git",
+  "python -c 'import saleor; print(f\"Saleor installed: {saleor.__version__}\")' || echo 'WARNING: Saleor import check failed'",
 ]
 
 [phases.build]
 cmds = [
-  "export PATH=$HOME/.local/bin:$PATH && python3 manage.py collectstatic --noinput || true",
+  "source .venv/bin/activate && python manage.py collectstatic --noinput || true",
 ]
 
 [start]
-cmd = "export PATH=$HOME/.local/bin:$PATH && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+cmd = "source .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
