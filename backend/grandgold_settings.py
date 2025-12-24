@@ -50,15 +50,32 @@ try:
     import site
     
     # Find site-packages that contains saleor
+    # Try multiple methods to find site-packages
     site_packages_path = None
-    for sp_path in site.getsitepackages():
-        saleor_path = os.path.join(sp_path, 'saleor')
-        if os.path.exists(saleor_path):
-            site_packages_path = sp_path
-            break
+    
+    # Method 1: site.getsitepackages()
+    all_site_packages = site.getsitepackages()
+    
+    # Method 2: Check sys.path for site-packages
+    sys_site_packages = [p for p in sys.path if 'site-packages' in p]
+    
+    # Method 3: Try to find where saleor is actually installed
+    # Check all paths in sys.path
+    for check_path in sys.path + all_site_packages:
+        if check_path and os.path.exists(check_path):
+            saleor_path = os.path.join(check_path, 'saleor')
+            if os.path.exists(saleor_path):
+                site_packages_path = check_path
+                break
     
     # #region agent log
-    _log_msg('grandgold_settings.py:53', 'Looking for installed Saleor', {'site_packages_path': site_packages_path, 'saleor_exists': os.path.exists(os.path.join(site_packages_path, 'saleor')) if site_packages_path else False}, 'A')
+    _log_msg('grandgold_settings.py:58', 'Looking for installed Saleor', {
+        'site_getsitepackages': all_site_packages,
+        'sys_site_packages': sys_site_packages,
+        'sys_path': sys.path[:5],
+        'found_site_packages_path': site_packages_path,
+        'saleor_exists': os.path.exists(os.path.join(site_packages_path, 'saleor')) if site_packages_path else False
+    }, 'A')
     # #endregion
     
     if site_packages_path:
