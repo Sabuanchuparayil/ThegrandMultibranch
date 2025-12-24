@@ -75,7 +75,9 @@ export default function BranchDashboardPage() {
         from.setDate(from.getDate() - 90);
         break;
       case '1y':
-        from.setDate(from.getDate() - 365);
+        // Use setFullYear to properly handle leap years
+        // This ensures "1 year ago" is exactly 365 or 366 days depending on leap years
+        from.setFullYear(from.getFullYear() - 1);
         break;
       default:
         from.setDate(from.getDate() - 30);

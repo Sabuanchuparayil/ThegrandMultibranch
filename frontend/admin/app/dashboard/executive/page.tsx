@@ -34,6 +34,66 @@ const GET_EXECUTIVE_KPIS = gql`
       totalCount
       edges {
         node {
+          id
+          total {
+            gross {
+              amount
+              currency
+            }
+          }
+          created
+        }
+      }
+    }
+    
+    # Regions for filtering
+    regions {
+      id
+      code
+      name
+    }
+  }
+`;
+
+const GET_SALES_TREND = gql`
+  query GetSalesTrend($days: Int!, $regionCode: String, $dateFrom: DateTime!, $dateTo: DateTime!) {
+    # Sales trend data for chart
+    orders(
+      filter: {
+        status: FULFILLED
+        created: { gte: $dateFrom, lte: $dateTo }
+      }
+      first: 1000
+    ) {
+      edges {
+        node {
+          id
+          total {
+            gross {
+              amount
+              currency
+            }
+          }
+          created
+        }
+      }
+    }
+  }
+`;
+
+const GET_REGION_PERFORMANCE = gql`
+  query GetRegionPerformance($dateFrom: DateTime!, $dateTo: DateTime!) {
+    # Performance by region
+    orders(
+      filter: {
+        status: FULFILLED
+        created: { gte: $dateFrom, lte: $dateTo }
+      }
+      first: 1000
+    ) {
+      edges {
+        node {
+          id
           total {
             gross {
               amount
@@ -43,23 +103,6 @@ const GET_EXECUTIVE_KPIS = gql`
         }
       }
     }
-    
-    # Additional KPIs would come from your custom extensions
-    # These are examples - you'll need to implement the actual queries
-  }
-`;
-
-const GET_SALES_TREND = gql`
-  query GetSalesTrend($days: Int!, $regionCode: String) {
-    # Sales trend data for chart
-    # Implement based on your GraphQL schema
-  }
-`;
-
-const GET_REGION_PERFORMANCE = gql`
-  query GetRegionPerformance($dateFrom: DateTime, $dateTo: DateTime) {
-    # Performance by region
-    # Implement based on your GraphQL schema
   }
 `;
 
