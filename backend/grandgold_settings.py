@@ -45,15 +45,15 @@ try:
     # Check which saleor module we're importing from BEFORE wildcard import
     import saleor
     import saleor.settings as saleor_settings_check
-    saleor_module_path = getattr(saleor, '__file__', 'unknown')
-    saleor_settings_path = getattr(saleor_settings_check, '__file__', 'unknown')
+    saleor_module_path = getattr(saleor, '__file__', None) or 'unknown'
+    saleor_settings_path = getattr(saleor_settings_check, '__file__', None) or 'unknown'
     
     # #region agent log
     _log_msg('grandgold_settings.py:40', 'Before wildcard import', {'saleor_module_path': saleor_module_path, 'saleor_settings_path': saleor_settings_path, 'has_INSTALLED_APPS_in_module': hasattr(saleor_settings_check, 'INSTALLED_APPS')}, 'A')
     # #endregion
     
     # If we're importing from local directory (not site-packages), that's a problem
-    is_local = '/app/' in saleor_settings_path and 'site-packages' not in saleor_settings_path
+    is_local = saleor_settings_path and saleor_settings_path != 'unknown' and '/app/' in saleor_settings_path and 'site-packages' not in saleor_settings_path
     
     # Now do the wildcard import
     from saleor.settings import *  # noqa: F403, F405
