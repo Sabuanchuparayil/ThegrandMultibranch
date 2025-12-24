@@ -5,44 +5,49 @@ This module extends Saleor's default settings with our custom configurations.
 We import from the installed Saleor package and then apply our extensions.
 """
 
-# First, try to import Saleor settings
-# When Saleor is installed from GitHub, it provides saleor.settings module
 import sys
+import os
 
-# Store original modules to avoid conflicts
-_original_modules = {}
-if 'saleor' in sys.modules:
-    _original_modules['saleor'] = sys.modules['saleor']
-if 'saleor.settings' in sys.modules:
-    _original_modules['saleor.settings'] = sys.modules['saleor.settings']
+# Critical: Remove our local saleor package from sys.modules to avoid conflicts
+# We need to import from the INSTALLED Saleor package, not our local saleor directory
+_local_saleor_modules = {}
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith('saleor'):
+        _local_saleor_modules[module_name] = sys.modules.pop(module_name)
 
-# Try to import from installed Saleor package
 try:
-    # Remove our local saleor from modules temporarily if it exists
-    if 'saleor' in sys.modules and 'saleor' not in _original_modules:
-        del sys.modules['saleor']
-    if 'saleor.settings' in sys.modules and 'saleor.settings' not in _original_modules:
-        del sys.modules['saleor.settings']
-    
-    # Import installed Saleor settings
+    # Now import from the installed Saleor package
     import importlib
+    
+    # Force import from installed package by clearing any cached imports
+    if 'saleor.settings' in sys.modules:
+        del sys.modules['saleor.settings']
+    if 'saleor' in sys.modules:
+        del sys.modules['saleor']
+    
+    # Import the installed Saleor settings module
     saleor_settings_module = importlib.import_module('saleor.settings')
     
-    # Copy all public attributes to our namespace
+    # Copy all public attributes that look like Django settings (uppercase names)
+    # This includes INSTALLED_APPS, MIDDLEWARE, DATABASES, etc.
     for attr_name in dir(saleor_settings_module):
-        if not attr_name.startswith('_'):
+        if not attr_name.startswith('_') and attr_name.isupper():
             try:
                 attr_value = getattr(saleor_settings_module, attr_name)
-                # Only copy module-level attributes (not methods, classes, etc.)
-                if not callable(attr_value) or attr_name.isupper():
-                    globals()[attr_name] = attr_value
+                globals()[attr_name] = attr_value
             except (AttributeError, TypeError):
                 pass
-                
+    
+    # Also try to get INSTALLED_APPS directly if it exists
+    if hasattr(saleor_settings_module, 'INSTALLED_APPS'):
+        INSTALLED_APPS = getattr(saleor_settings_module, 'INSTALLED_APPS')
+    if hasattr(saleor_settings_module, 'MIDDLEWARE'):
+        MIDDLEWARE = getattr(saleor_settings_module, 'MIDDLEWARE')
+        
 except ImportError as e:
-    # Restore original modules
-    for key, value in _original_modules.items():
-        sys.modules[key] = value
+    # Restore local modules
+    for module_name, module_obj in _local_saleor_modules.items():
+        sys.modules[module_name] = module_obj
     
     raise ImportError(
         f"Could not import Saleor settings from installed package: {e}. "
@@ -93,7 +98,6 @@ if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  #
         MIDDLEWARE.append('saleor_extensions.audit.middleware.AuditLogMiddleware')  # noqa: F405
 
 # Railway-specific configurations
-import os
 
 # Database configuration (Railway provides DATABASE_URL)
 if 'DATABASE_URL' in os.environ:
