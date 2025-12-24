@@ -361,7 +361,7 @@ if 'INSTALLED_APPS' not in globals():
             if not saleor_found_path:
                 # Final check: try direct import to see what error we get
                 try:
-                import saleor
+                    import saleor
                 saleor_location = getattr(saleor, '__file__', None) or (getattr(saleor, '__path__', [None])[0] if hasattr(saleor, '__path__') else None)
                 raise ImportError(
                     f"Could not find site-packages directory containing Saleor. "
@@ -379,7 +379,7 @@ if 'INSTALLED_APPS' not in globals():
                     f"Saleor is not installed. Check Railway build logs for installation errors."
                 )
             else:
-            # Found in sys.path, continue loading
+                # Found in sys.path, continue loading
             site_packages_path = saleor_found_path
             saleor_dir = os.path.join(site_packages_path, 'saleor')
             settings_file = os.path.join(saleor_dir, 'settings.py')
