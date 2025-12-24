@@ -75,9 +75,24 @@ export default function BranchDashboardPage() {
         from.setDate(from.getDate() - 90);
         break;
       case '1y':
-        // Use setFullYear to properly handle leap years
-        // This ensures "1 year ago" is exactly 365 or 366 days depending on leap years
-        from.setFullYear(from.getFullYear() - 1);
+        // Properly handle leap years: subtract one year while preserving month/day
+        // If Feb 29 doesn't exist in the target year, use Feb 28 instead
+        const originalMonth = from.getMonth();
+        const originalDate = from.getDate();
+        const targetYear = from.getFullYear() - 1;
+        
+        // Check if we're on Feb 29 and target year is not a leap year
+        const isLeapYear = (year: number) => {
+          return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        };
+        
+        if (originalMonth === 1 && originalDate === 29 && !isLeapYear(targetYear)) {
+          // Feb 29 in leap year -> Feb 28 in non-leap year
+          from.setFullYear(targetYear, 1, 28);
+        } else {
+          // Normal case: subtract one year
+          from.setFullYear(targetYear);
+        }
         break;
       default:
         from.setDate(from.getDate() - 30);
