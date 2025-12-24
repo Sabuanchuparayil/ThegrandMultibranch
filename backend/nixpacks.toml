@@ -19,6 +19,7 @@ cmds = [
 [phases.build]
 cmds = [
   ". .venv/bin/activate && python manage.py collectstatic --noinput || true",
+  ". .venv/bin/activate && python manage.py migrate --noinput || true",
 ]
 
 [start]
