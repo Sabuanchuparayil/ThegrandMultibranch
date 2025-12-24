@@ -1,5 +1,5 @@
-saleor>=3.20.0
-django>=4.2.0
+# Saleor dependencies (Saleor itself is installed from GitHub during build)
+django>=4.2.0,<5.0
 psycopg2-binary>=2.9.0
 redis>=5.0.0
 celery>=5.3.0

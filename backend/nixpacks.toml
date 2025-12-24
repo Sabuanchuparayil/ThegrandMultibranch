@@ -1,0 +1,20 @@
+# Railway Nixpacks configuration for Saleor installation
+# Saleor must be installed from GitHub, not PyPI
+
+[phases.setup]
+nixPkgs = ["python311", "git"]
+
+[phases.install]
+cmds = [
+  "pip install --upgrade pip setuptools wheel",
+  "pip install -r requirements.txt",
+  "pip install git+https://github.com/saleor/saleor.git",
+]
+
+[phases.build]
+cmds = [
+  "python manage.py collectstatic --noinput || true",
+]
+
+[start]
+cmd = "gunicorn saleor.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
