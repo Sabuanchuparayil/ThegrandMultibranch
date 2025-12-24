@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { errorCache, getErrorCacheKey } from '@/lib/error-cache';
 
 interface UseErrorCacheOptions {
@@ -17,22 +17,32 @@ export function useErrorCache({ queryName, variables, enabled = true }: UseError
   const [shouldShowError, setShouldShowError] = useState(false);
   const [cachedError, setCachedError] = useState<Error | null>(null);
   const errorRef = useRef<Error | null>(null);
-  const cacheKey = getErrorCacheKey(queryName, variables);
+  const dismissedRef = useRef<boolean>(false); // Track if error was manually dismissed
+  const cacheKey = useMemo(() => getErrorCacheKey(queryName, variables), [queryName, variables]);
 
   useEffect(() => {
     // Clear error state when query name or variables change
     setShouldShowError(false);
     setCachedError(null);
     errorRef.current = null;
-  }, [queryName, JSON.stringify(variables)]);
+    dismissedRef.current = false; // Reset dismissed state on query change
+  }, [cacheKey]);
 
-  const handleError = (error: Error | null) => {
+  const handleError = useCallback((error: Error | null) => {
     if (!error) {
       // Clear error cache on success
       errorCache.clearError(cacheKey);
       setShouldShowError(false);
       setCachedError(null);
       errorRef.current = null;
+      dismissedRef.current = false; // Reset dismissed state on success
+      return;
+    }
+
+    // If error was manually dismissed, don't re-show it
+    if (dismissedRef.current) {
+      setShouldShowError(false);
+      setCachedError(null);
       return;
     }
 
@@ -47,14 +57,15 @@ export function useErrorCache({ queryName, variables, enabled = true }: UseError
     const show = errorCache.shouldShowError(cacheKey, error);
     setShouldShowError(show);
     setCachedError(show ? error : null);
-  };
+  }, [cacheKey, enabled]);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     errorCache.clearError(cacheKey);
     setShouldShowError(false);
     setCachedError(null);
     errorRef.current = null;
-  };
+    dismissedRef.current = true; // Mark as dismissed to prevent re-showing
+  }, [cacheKey]);
 
   return {
     shouldShowError,

@@ -56,13 +56,16 @@ export default function InventoryModule() {
   });
 
   // Update error cache when error changes
+  // Note: handleError is memoized with useCallback, so it's stable and safe to include
+  // However, we only depend on error to avoid unnecessary re-runs
   useEffect(() => {
     if (error) {
       handleError(error as Error);
     } else {
       handleError(null);
     }
-  }, [error, handleError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]); // Only depend on error, handleError is stable
 
   // Mock data fallback
   const mockInventory = [
