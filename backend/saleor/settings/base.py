@@ -1,9 +1,13 @@
 """
-Django settings for Grand Gold & Diamonds project.
-This extends Saleor's default settings.
+Django settings extensions for Grand Gold & Diamonds project.
+This file extends Saleor's default settings with our custom configurations.
+
+Note: This file is imported after saleor.settings in __init__.py,
+so it can override and extend Saleor's default settings.
 """
-# Import Saleor's default settings first
-from saleor.settings import *  # noqa: F403, F405
+
+# At this point, all settings from saleor.settings have been imported via __init__.py
+# We can now extend and override them
 
 # Extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
@@ -36,3 +40,27 @@ if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  #
         MIDDLEWARE.insert(auth_index + 1, 'saleor_extensions.audit.middleware.AuditLogMiddleware')  # noqa: F405
     except ValueError:
         MIDDLEWARE.append('saleor_extensions.audit.middleware.AuditLogMiddleware')  # noqa: F405
+
+# Railway-specific configurations (when deployed)
+import os
+
+# Database configuration (Railway provides DATABASE_URL)
+if 'DATABASE_URL' in os.environ:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    }
+
+# Static files configuration for Railway
+STATIC_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'staticfiles')
+
+# Media files - use S3 if configured
+if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com')
+    AWS_DEFAULT_ACL = 'public-read'
