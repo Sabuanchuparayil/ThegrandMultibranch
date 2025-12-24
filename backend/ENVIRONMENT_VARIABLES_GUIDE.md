@@ -80,6 +80,26 @@ ALLOWED_HOSTS=your-app.railway.app,localhost,127.0.0.1
 
 ---
 
+### 3b. ALLOWED_CLIENT_HOSTS (Required when DEBUG=False)
+
+**Purpose**: List of allowed client origins for Saleor GraphQL API (separate from ALLOWED_HOSTS)
+
+**Format**: Comma-separated list or `*` for all origins
+
+**Set in Railway**: 
+```
+ALLOWED_CLIENT_HOSTS=your-app.railway.app,localhost,127.0.0.1
+```
+
+**Or for development/preview** (allows all origins):
+```
+ALLOWED_CLIENT_HOSTS=*
+```
+
+**Note**: If not set, defaults to `*` (allows all origins). For production, set specific domains.
+
+---
+
 ### 4. DATABASE_URL (Usually Auto-provided)
 
 **Purpose**: PostgreSQL connection string

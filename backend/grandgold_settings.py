@@ -608,6 +608,26 @@ if 'DATABASE_URL' in os.environ:
     except ImportError:
         pass
 
+# ALLOWED_CLIENT_HOSTS configuration (required by Saleor when DEBUG=False)
+# This is separate from ALLOWED_HOSTS - it's for GraphQL client origins
+if 'ALLOWED_CLIENT_HOSTS' not in os.environ:
+    # Set default based on ALLOWED_HOSTS or Railway domain
+    if 'ALLOWED_HOSTS' in os.environ:
+        # Use ALLOWED_HOSTS if provided
+        allowed_hosts = os.environ.get('ALLOWED_HOSTS', '').split(',')
+        ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_hosts if host.strip()]
+    else:
+        # Default: allow all origins (for development/preview)
+        # In production, set ALLOWED_CLIENT_HOSTS explicitly
+        ALLOWED_CLIENT_HOSTS = ['*']
+else:
+    # Use environment variable if provided
+    allowed_client_hosts = os.environ.get('ALLOWED_CLIENT_HOSTS', '*')
+    if ',' in allowed_client_hosts:
+        ALLOWED_CLIENT_HOSTS = [host.strip() for host in allowed_client_hosts.split(',')]
+    else:
+        ALLOWED_CLIENT_HOSTS = [allowed_client_hosts] if allowed_client_hosts != '*' else ['*']
+
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 
