@@ -203,33 +203,33 @@ if 'INSTALLED_APPS' not in globals():
         # Check paths but EXCLUDE /app directory (that's our local code)
         checked_paths = []
         for check_path in sys_site_packages + (all_site_packages or []):
-        if check_path and os.path.exists(check_path):
-            # Skip /app directory - that's our local code, not installed packages
-            normalized_path = check_path.replace('\\', '/')
-            if '/app/' in normalized_path and 'site-packages' not in normalized_path:
-                continue
-            saleor_path = os.path.join(check_path, 'saleor')
-            saleor_exists = os.path.exists(saleor_path)
-            checked_paths.append({
-                'path': check_path,
-                'saleor_exists': saleor_exists,
-                'normalized': normalized_path
-            })
-            if saleor_exists:
-                # Verify this is NOT our local saleor directory
-                local_saleor = os.path.join(backend_dir, 'saleor')
-                if os.path.exists(local_saleor):
-                    try:
-                        is_local = os.path.samefile(saleor_path, local_saleor)
-                    except (OSError, ValueError):
-                        # Can't compare (different filesystems or one doesn't exist), check by path
-                        is_local = os.path.abspath(saleor_path) == os.path.abspath(local_saleor)
-                else:
-                    is_local = False
-                
-                if not is_local:
-                    site_packages_path = check_path
-                    break
+            if check_path and os.path.exists(check_path):
+                # Skip /app directory - that's our local code, not installed packages
+                normalized_path = check_path.replace('\\', '/')
+                if '/app/' in normalized_path and 'site-packages' not in normalized_path:
+                    continue
+                saleor_path = os.path.join(check_path, 'saleor')
+                saleor_exists = os.path.exists(saleor_path)
+                checked_paths.append({
+                    'path': check_path,
+                    'saleor_exists': saleor_exists,
+                    'normalized': normalized_path
+                })
+                if saleor_exists:
+                    # Verify this is NOT our local saleor directory
+                    local_saleor = os.path.join(backend_dir, 'saleor')
+                    if os.path.exists(local_saleor):
+                        try:
+                            is_local = os.path.samefile(saleor_path, local_saleor)
+                        except (OSError, ValueError):
+                            # Can't compare (different filesystems or one doesn't exist), check by path
+                            is_local = os.path.abspath(saleor_path) == os.path.abspath(local_saleor)
+                    else:
+                        is_local = False
+                    
+                    if not is_local:
+                        site_packages_path = check_path
+                        break
     
         # #region agent log
         _log_msg('grandgold_settings.py:100', 'Method 4: Iterating paths', {
@@ -250,75 +250,75 @@ if 'INSTALLED_APPS' not in globals():
         # #endregion
     
         if site_packages_path:
-        # Explicitly load from site-packages
-        saleor_dir = os.path.join(site_packages_path, 'saleor')
+            # Explicitly load from site-packages
+            saleor_dir = os.path.join(site_packages_path, 'saleor')
         
-        # Check different possible locations for Saleor settings
-        settings_file = os.path.join(saleor_dir, 'settings.py')
-        settings_package = os.path.join(saleor_dir, 'settings')
+            # Check different possible locations for Saleor settings
+            settings_file = os.path.join(saleor_dir, 'settings.py')
+            settings_package = os.path.join(saleor_dir, 'settings')
         
-        # #region agent log
-        _log_msg('grandgold_settings.py:66', 'Checking Saleor structure', {
+            # #region agent log
+            _log_msg('grandgold_settings.py:66', 'Checking Saleor structure', {
             'saleor_dir_exists': os.path.exists(saleor_dir),
             'settings_py_exists': os.path.exists(settings_file),
             'settings_package_exists': os.path.isdir(settings_package),
             'saleor_contents': os.listdir(saleor_dir)[:10] if os.path.exists(saleor_dir) else []
-        }, 'A')
-        # #endregion
+            }, 'A')
+            # #endregion
         
-        saleor_settings_module = None
+            saleor_settings_module = None
         
-        # Load saleor package first
-        saleor_init = os.path.join(saleor_dir, '__init__.py')
-        if os.path.exists(saleor_init):
-            saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
-            saleor_module = importlib.util.module_from_spec(saleor_spec)
-            sys.modules['saleor'] = saleor_module
-            saleor_spec.loader.exec_module(saleor_module)
+            # Load saleor package first
+            saleor_init = os.path.join(saleor_dir, '__init__.py')
+            if os.path.exists(saleor_init):
+                saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+                saleor_module = importlib.util.module_from_spec(saleor_spec)
+                sys.modules['saleor'] = saleor_module
+                saleor_spec.loader.exec_module(saleor_module)
         
-        # Try settings.py first
-        if os.path.exists(settings_file):
-            spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
-            saleor_settings_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(saleor_settings_module)
-            sys.modules['saleor.settings'] = saleor_settings_module
-        # Try settings package with __init__.py
-        elif os.path.isdir(settings_package):
-            settings_init = os.path.join(settings_package, '__init__.py')
-            if os.path.exists(settings_init):
-                spec = importlib.util.spec_from_file_location('saleor.settings', settings_init)
+            # Try settings.py first
+            if os.path.exists(settings_file):
+                spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
                 saleor_settings_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(saleor_settings_module)
                 sys.modules['saleor.settings'] = saleor_settings_module
+            # Try settings package with __init__.py
+            elif os.path.isdir(settings_package):
+                settings_init = os.path.join(settings_package, '__init__.py')
+                if os.path.exists(settings_init):
+                    spec = importlib.util.spec_from_file_location('saleor.settings', settings_init)
+                    saleor_settings_module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(saleor_settings_module)
+                    sys.modules['saleor.settings'] = saleor_settings_module
         
-        if saleor_settings_module:
-            # #region agent log
-            _log_msg('grandgold_settings.py:95', 'Loaded settings module', {
-                'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'),
-                'all_attrs': len(dir(saleor_settings_module)),
-                'uppercase_attrs': [a for a in dir(saleor_settings_module) if a.isupper()][:15]
-            }, 'A')
-            # #endregion
-            
-            # Copy all uppercase attributes (Django settings)
-            copied = 0
-            for attr_name in dir(saleor_settings_module):
-                if attr_name.isupper() and not attr_name.startswith('_'):
-                    try:
-                        globals()[attr_name] = getattr(saleor_settings_module, attr_name)
-                        copied += 1
-                    except (AttributeError, TypeError):
-                        pass
-            
-            # #region agent log
-            _log_msg('grandgold_settings.py:109', 'Copied attributes', {'copied_count': copied, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'A')
-            # #endregion
+            if saleor_settings_module:
+                # #region agent log
+                _log_msg('grandgold_settings.py:95', 'Loaded settings module', {
+                    'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'),
+                    'all_attrs': len(dir(saleor_settings_module)),
+                    'uppercase_attrs': [a for a in dir(saleor_settings_module) if a.isupper()][:15]
+                }, 'A')
+                # #endregion
+                
+                # Copy all uppercase attributes (Django settings)
+                copied = 0
+                for attr_name in dir(saleor_settings_module):
+                    if attr_name.isupper() and not attr_name.startswith('_'):
+                        try:
+                            globals()[attr_name] = getattr(saleor_settings_module, attr_name)
+                            copied += 1
+                        except (AttributeError, TypeError):
+                            pass
+                
+                # #region agent log
+                _log_msg('grandgold_settings.py:109', 'Copied attributes', {'copied_count': copied, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'A')
+                # #endregion
+            else:
+                raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
         else:
-            raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
-        else:
-        # Try to find Saleor in sys.path directly as fallback
-        # BUT exclude local /app/saleor directory - only accept site-packages locations
-        saleor_found_path = None
+            # Try to find Saleor in sys.path directly as fallback
+            # BUT exclude local /app/saleor directory - only accept site-packages locations
+            saleor_found_path = None
         backend_dir = os.path.dirname(__file__)
         local_saleor = os.path.join(backend_dir, 'saleor')
         
