@@ -63,24 +63,53 @@ try:
     
     if site_packages_path:
         # Explicitly load from site-packages
-        settings_file = os.path.join(site_packages_path, 'saleor', 'settings.py')
+        saleor_dir = os.path.join(site_packages_path, 'saleor')
+        
+        # Check different possible locations for Saleor settings
+        settings_file = os.path.join(saleor_dir, 'settings.py')
+        settings_package = os.path.join(saleor_dir, 'settings')
+        
+        # #region agent log
+        _log_msg('grandgold_settings.py:66', 'Checking Saleor structure', {
+            'saleor_dir_exists': os.path.exists(saleor_dir),
+            'settings_py_exists': os.path.exists(settings_file),
+            'settings_package_exists': os.path.isdir(settings_package),
+            'saleor_contents': os.listdir(saleor_dir)[:10] if os.path.exists(saleor_dir) else []
+        }, 'A')
+        # #endregion
+        
+        saleor_settings_module = None
+        
+        # Load saleor package first
+        saleor_init = os.path.join(saleor_dir, '__init__.py')
+        if os.path.exists(saleor_init):
+            saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
+            saleor_module = importlib.util.module_from_spec(saleor_spec)
+            sys.modules['saleor'] = saleor_module
+            saleor_spec.loader.exec_module(saleor_module)
+        
+        # Try settings.py first
         if os.path.exists(settings_file):
-            # Load saleor package first
-            saleor_init = os.path.join(site_packages_path, 'saleor', '__init__.py')
-            if os.path.exists(saleor_init):
-                saleor_spec = importlib.util.spec_from_file_location('saleor', saleor_init)
-                saleor_module = importlib.util.module_from_spec(saleor_spec)
-                sys.modules['saleor'] = saleor_module
-                saleor_spec.loader.exec_module(saleor_module)
-            
-            # Load settings module
             spec = importlib.util.spec_from_file_location('saleor.settings', settings_file)
             saleor_settings_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(saleor_settings_module)
             sys.modules['saleor.settings'] = saleor_settings_module
-            
+        # Try settings package with __init__.py
+        elif os.path.isdir(settings_package):
+            settings_init = os.path.join(settings_package, '__init__.py')
+            if os.path.exists(settings_init):
+                spec = importlib.util.spec_from_file_location('saleor.settings', settings_init)
+                saleor_settings_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(saleor_settings_module)
+                sys.modules['saleor.settings'] = saleor_settings_module
+        
+        if saleor_settings_module:
             # #region agent log
-            _log_msg('grandgold_settings.py:70', 'Loaded from site-packages', {'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'), 'uppercase_count': len([a for a in dir(saleor_settings_module) if a.isupper()])}, 'A')
+            _log_msg('grandgold_settings.py:95', 'Loaded settings module', {
+                'has_INSTALLED_APPS': hasattr(saleor_settings_module, 'INSTALLED_APPS'),
+                'all_attrs': len(dir(saleor_settings_module)),
+                'uppercase_attrs': [a for a in dir(saleor_settings_module) if a.isupper()][:15]
+            }, 'A')
             # #endregion
             
             # Copy all uppercase attributes (Django settings)
@@ -94,13 +123,12 @@ try:
                         pass
             
             # #region agent log
-            _log_msg('grandgold_settings.py:82', 'Copied attributes', {'copied_count': copied, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'A')
+            _log_msg('grandgold_settings.py:109', 'Copied attributes', {'copied_count': copied, 'INSTALLED_APPS_in_globals': 'INSTALLED_APPS' in globals()}, 'A')
             # #endregion
         else:
-            raise ImportError(f"Saleor settings.py not found at {settings_file}")
+            raise ImportError(f"Saleor settings not found at {settings_file} or {settings_package}")
     else:
-        # Fallback: try direct import (might work if site-packages is in path correctly)
-        from saleor.settings import *  # noqa: F403, F405
+        raise ImportError("Could not find site-packages directory containing Saleor")
     
 except ImportError as e:
     # #region agent log
