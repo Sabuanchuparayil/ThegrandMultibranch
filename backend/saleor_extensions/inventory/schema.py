@@ -12,8 +12,65 @@ from saleor_extensions.inventory.models import (
     LowStockAlert,
 )
 from saleor_extensions.branches.models import Branch
-# Use string reference to BranchType to avoid duplicate type registration
-# BranchType is defined in saleor_extensions.branches.schema
+# Import BranchType using lambda to avoid circular imports and duplicate registration
+# Lambda ensures the import happens at schema creation time, not at module import time
+def _get_branch_type():
+    # #region agent log
+    import json
+    import os
+    import time
+    try:
+        log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+        if not os.path.exists(os.path.dirname(log_path)):
+            log_path = '/tmp/debug.log'
+        with open(log_path, 'a') as f:
+            f.write(json.dumps({
+                'timestamp': int(time.time() * 1000),
+                'location': 'inventory/schema.py:_get_branch_type',
+                'message': 'Attempting to import BranchType',
+                'data': {},
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'H6'
+            }) + '\n')
+    except:
+        pass
+    # #endregion
+    try:
+        from saleor_extensions.branches.schema import BranchType
+        # #region agent log
+        try:
+            with open(log_path, 'a') as f:
+                f.write(json.dumps({
+                    'timestamp': int(time.time() * 1000),
+                    'location': 'inventory/schema.py:_get_branch_type',
+                    'message': 'BranchType imported successfully',
+                    'data': {'branch_type_module': BranchType.__module__, 'branch_type_name': BranchType.__name__},
+                    'sessionId': 'debug-session',
+                    'runId': 'schema-load',
+                    'hypothesisId': 'H6'
+                }) + '\n')
+        except:
+            pass
+        # #endregion
+        return BranchType
+    except Exception as e:
+        # #region agent log
+        try:
+            with open(log_path, 'a') as f:
+                f.write(json.dumps({
+                    'timestamp': int(time.time() * 1000),
+                    'location': 'inventory/schema.py:_get_branch_type',
+                    'message': 'BranchType import failed',
+                    'data': {'error': str(e), 'error_type': type(e).__name__},
+                    'sessionId': 'debug-session',
+                    'runId': 'schema-load',
+                    'hypothesisId': 'H6'
+                }) + '\n')
+        except:
+            pass
+        # #endregion
+        raise
 
 # Try to import BaseMutation from Saleor, fallback to graphene.Mutation
 try:
@@ -72,7 +129,7 @@ class BranchInventoryType(graphene.ObjectType):
 
     id = graphene.ID()
     product_variant = graphene.Field(ProductVariantType)
-    branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
+    branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
     quantity = graphene.Int()
     reserved_quantity = graphene.Int()
     low_stock_threshold = graphene.Int()
@@ -92,7 +149,7 @@ class StockMovementType(graphene.ObjectType):
     """Stock Movement GraphQL Type (no graphene-django dependency)."""
 
     id = graphene.ID()
-    branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
+    branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
     product_variant = graphene.Field(ProductVariantType)
     movement_type = graphene.String()
     quantity = graphene.Int()
@@ -107,8 +164,8 @@ class StockTransferType(graphene.ObjectType):
 
     id = graphene.ID()
     transfer_number = graphene.String()
-    from_branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
-    to_branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
+    from_branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
+    to_branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
     quantity = graphene.Int()
     status = graphene.String()
     requested_by = graphene.String()
