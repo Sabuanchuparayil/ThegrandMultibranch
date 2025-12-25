@@ -7,7 +7,7 @@ import { useErrorCache } from '@/hooks/useErrorCache';
 
 const GET_CUSTOMERS = gql`
   query GetCustomers($first: Int, $filter: CustomerFilterInput) {
-    users(first: $first, filter: $filter) {
+    customers(first: $first, filter: $filter) {
       edges {
         node {
           id
