@@ -5,7 +5,14 @@ Provides queries for executive and branch dashboards
 import graphene
 from django.db.models import Sum, Count, Avg, Q, F
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal as PythonDecimal
+
+# Try to import Decimal from Saleor to avoid duplicate type errors
+try:
+    from saleor.graphql.core.scalars import Decimal
+except ImportError:
+    # Fallback to graphene.Decimal if Saleor's Decimal is not available
+    Decimal = graphene.Decimal
 
 # Import models
 from saleor_extensions.orders.models import OrderBranchAssignment, ManualOrder
@@ -31,7 +38,7 @@ class KPIType(graphene.ObjectType):
 class SalesDataPoint(graphene.ObjectType):
     """Sales data point for charts"""
     date = graphene.String()
-    value = graphene.Decimal()
+    value = Decimal()
     orders = graphene.Int()
     currency = graphene.String()
 
@@ -40,7 +47,7 @@ class BranchPerformanceType(graphene.ObjectType):
     """Branch performance metrics"""
     branch_id = graphene.ID()
     branch_name = graphene.String()
-    sales = graphene.Decimal()
+    sales = Decimal()
     orders = graphene.Int()
     growth = graphene.Float()
     currency = graphene.String()
@@ -50,7 +57,7 @@ class ProductPerformanceType(graphene.ObjectType):
     """Top performing products"""
     product_id = graphene.ID()
     product_name = graphene.String()
-    sales = graphene.Decimal()
+    sales = Decimal()
     quantity = graphene.Int()
     currency = graphene.String()
 
@@ -60,7 +67,7 @@ class InventoryStatusType(graphene.ObjectType):
     total_items = graphene.Int()
     low_stock_items = graphene.Int()
     out_of_stock_items = graphene.Int()
-    total_value = graphene.Decimal()
+    total_value = Decimal()
     currency = graphene.String()
 
 

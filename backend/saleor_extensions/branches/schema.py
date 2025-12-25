@@ -7,16 +7,17 @@ from django.core.exceptions import ValidationError
 from saleor_extensions.branches.models import Branch
 from saleor_extensions.regions.models import Region
 
-# Try to import BaseMutation, DateTime, and JSON from Saleor, fallback to graphene
+# Try to import BaseMutation, DateTime, JSON, and Decimal from Saleor, fallback to graphene
 try:
     from saleor.graphql.core.mutations import BaseMutation
     from saleor.graphql.core.types import Error
-    from saleor.graphql.core.scalars import DateTime, JSON
+    from saleor.graphql.core.scalars import DateTime, JSON, Decimal
     _SALEOR_AVAILABLE = True
 except ImportError:
     # Fallback to graphene types if Saleor's types are not available
     DateTime = graphene.DateTime
     JSON = graphene.JSONString
+    Decimal = graphene.Decimal
     # Fallback if Saleor's BaseMutation is not available
     # Define Error class first so it can be used in BaseMutation
     # Use a graphene ObjectType with resolvers and direct attribute access
@@ -76,7 +77,7 @@ class RegionType(graphene.ObjectType):
     code = graphene.String()
     name = graphene.String()
     default_currency = graphene.String()
-    tax_rate = graphene.Decimal()
+    tax_rate = Decimal()
     timezone = graphene.String()
     locale = graphene.String()
     is_active = graphene.Boolean()

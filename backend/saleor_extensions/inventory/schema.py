@@ -13,12 +13,13 @@ from saleor_extensions.inventory.models import (
 )
 from saleor_extensions.branches.models import Branch
 
-# Try to import DateTime from Saleor to avoid duplicate type errors
+# Try to import DateTime and Decimal from Saleor to avoid duplicate type errors
 try:
-    from saleor.graphql.core.scalars import DateTime
+    from saleor.graphql.core.scalars import DateTime, Decimal
 except ImportError:
-    # Fallback to graphene.DateTime if Saleor's DateTime is not available
+    # Fallback to graphene types if Saleor's types are not available
     DateTime = graphene.DateTime
+    Decimal = graphene.Decimal
 
 # Import BranchType using lambda to avoid circular imports and duplicate registration
 # Lambda ensures the import happens at schema creation time, not at module import time
