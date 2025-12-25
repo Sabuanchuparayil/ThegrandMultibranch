@@ -37,7 +37,20 @@ try:
     # CRITICAL: Import from core.schema, NOT from graphql.schema
     # graphql.schema would import our own file (circular import)
     # core.schema is Saleor's actual Query/Mutation definitions
-    from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
+    # IMPORTANT: Temporarily remove our local saleor.graphql from sys.modules to force import from installed package
+    import sys
+    _local_graphql_backup = None
+    if 'saleor.graphql' in sys.modules:
+        _local_graphql_backup = sys.modules.pop('saleor.graphql')
+        print(f"🔍 Temporarily removed local saleor.graphql from sys.modules to import from installed package")
+    
+    try:
+        from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
+    finally:
+        # Restore our local module after import
+        if _local_graphql_backup is not None:
+            sys.modules['saleor.graphql'] = _local_graphql_backup
+            print(f"🔍 Restored local saleor.graphql module")
     
     # Verify we got the right classes
     print(f"✅ Imported SaleorQuery from: {SaleorQuery.__module__}")
