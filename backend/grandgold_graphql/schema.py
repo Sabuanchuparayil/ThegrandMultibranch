@@ -8,6 +8,26 @@ IMPORTANT:
   guarantees it can be imported regardless of Saleor import precedence.
 """
 
+# CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
+# This must happen before Saleor imports, as they may trigger libmagic usage
+import os
+try:
+    import subprocess
+    result = subprocess.run(
+        'find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null',
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=3
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        libmagic_dir = result.stdout.strip()
+        current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        if libmagic_dir and libmagic_dir not in current_ld_path:
+            os.environ['LD_LIBRARY_PATH'] = f"{current_ld_path}:{libmagic_dir}" if current_ld_path else libmagic_dir
+except Exception:
+    pass  # Ignore errors - LD_LIBRARY_PATH might already be set
+
 import graphene
 
 
