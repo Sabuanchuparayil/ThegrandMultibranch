@@ -119,11 +119,53 @@ try:
         BranchMutations,
     )
     _BRANCHES_AVAILABLE = True
+    # #region agent log
+    try:
+        import time as _time
+        import json as _json
+        _log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+        if not os.path.exists(os.path.dirname(_log_path)):
+            _log_path = '/tmp/debug.log'
+        with open(_log_path, 'a') as _f:
+            _f.write(_json.dumps({
+                'timestamp': int(_time.time() * 1000),
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'H2',
+                'location': 'saleor/graphql/schema.py:branches_import',
+                'message': 'Branch schema import result',
+                'data': {
+                    'branches_available': True
+                }
+            }) + '\n')
+    except Exception:
+        pass
+    # #endregion
 except ImportError as e:
     print(f"Warning: Branches schema not available: {e}")
     _BRANCHES_AVAILABLE = False
     BranchQueries = graphene.ObjectType
     BranchMutations = graphene.ObjectType
+    # #region agent log
+    try:
+        _log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+        if not os.path.exists(os.path.dirname(_log_path)):
+            _log_path = '/tmp/debug.log'
+        with open(_log_path, 'a') as _f:
+            _f.write(json.dumps({
+                'timestamp': int(time.time() * 1000),
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'H2',
+                'location': 'saleor/graphql/schema.py:branches_import',
+                'message': 'Branch schema import failed',
+                'data': {
+                    'error': str(e)
+                }
+            }) + '\n')
+    except Exception:
+        pass
+    # #endregion
 
 # Import dashboard/reports queries
 try:
@@ -297,7 +339,7 @@ try:
                         },
                         'sessionId': 'debug-session',
                         'runId': 'schema-load',
-                        'hypothesisId': 'B'
+                        'hypothesisId': 'H3'
                     }) + '\n')
             except:
                 pass

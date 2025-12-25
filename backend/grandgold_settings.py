@@ -754,6 +754,27 @@ if 'ROOT_URLCONF' not in globals():
     # Saleor's default is 'saleor.urls'
     ROOT_URLCONF = 'saleor.urls'
 
+# #region agent log
+try:
+    _log_path = os.path.join(os.path.dirname(__file__), '.cursor', 'debug.log')
+    if not os.path.exists(os.path.dirname(_log_path)):
+        _log_path = '/tmp/debug.log'
+    with open(_log_path, 'a') as _log_file:
+        _log_file.write(json.dumps({
+            'timestamp': int(time.time() * 1000),
+            'sessionId': 'debug-session',
+            'runId': 'schema-debug',
+            'hypothesisId': 'H1',
+            'location': 'grandgold_settings.py:ROOT_URLCONF',
+            'message': 'ROOT_URLCONF configured',
+            'data': {
+                'root_urlconf': ROOT_URLCONF
+            }
+        }) + '\n')
+except Exception:
+    pass
+# #endregion
+
 # WSGI Application
 # Railway's nixpacks requires this setting to find the WSGI application
 WSGI_APPLICATION = 'wsgi.application'

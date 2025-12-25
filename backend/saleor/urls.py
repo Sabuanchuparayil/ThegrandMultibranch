@@ -292,14 +292,20 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
             
             return wrapped_view
         
-        # Create the GraphQL view with our extended schema and logging
-        graphql_view = create_graphql_view_with_logging(extended_schema)
-        
-        # Add our extended GraphQL endpoint first (Django uses first match)
-        urlpatterns.append(
-            path('graphql/', graphql_view)
-        )
-        print("✅ Extended GraphQL schema loaded and endpoint configured")
+                # Create the GraphQL view with our extended schema and logging
+                graphql_view = create_graphql_view_with_logging(extended_schema)
+                
+                # CRITICAL: Use path() with explicit name to ensure it's unique
+                # Add our extended GraphQL endpoint first (Django uses first match)
+                our_graphql_path = path('graphql/', graphql_view, name='extended_graphql')
+                urlpatterns.append(our_graphql_path)
+                
+                # Verify the path was added correctly
+                print("✅ Extended GraphQL schema loaded and endpoint configured")
+                print(f"   Path object: {our_graphql_path}")
+                print(f"   Path pattern: {our_graphql_path.pattern if hasattr(our_graphql_path, 'pattern') else 'N/A'}")
+                print(f"   Path name: {our_graphql_path.name if hasattr(our_graphql_path, 'name') else 'N/A'}")
+                print(f"   View function: {our_graphql_path.callback if hasattr(our_graphql_path, 'callback') else 'N/A'}")
         print(f"   Schema type: {type(extended_schema)}")
         print(f"   Schema file location: {getattr(extended_schema, '__module__', 'unknown')}")
         if hasattr(extended_schema, 'query_type'):
@@ -344,4 +350,40 @@ if urlpatterns:
             urlpatterns = graphql_patterns + other_patterns
             print(f"🔧 FIXED: Reordered urlpatterns - GraphQL patterns first")
             print(f"   New first pattern: {str(urlpatterns[0].pattern) if hasattr(urlpatterns[0], 'pattern') else str(urlpatterns[0])}")
+
+    # Build list of GraphQL patterns for logging
+    graphql_patterns_summary = []
+    for idx, pattern in enumerate(urlpatterns):
+        try:
+            pattern_str = str(pattern.pattern) if hasattr(pattern, 'pattern') else str(pattern)
+            if 'graphql' in pattern_str.lower():
+                graphql_patterns_summary.append({'index': idx, 'pattern': pattern_str})
+        except Exception:
+            pass
+
+    # #region agent log
+    try:
+        import json as _json
+        import time as _time
+        _log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+        if not os.path.exists(os.path.dirname(_log_path)):
+            _log_path = '/tmp/debug.log'
+        with open(_log_path, 'a') as _f:
+            _f.write(_json.dumps({
+                'timestamp': int(_time.time() * 1000),
+                'sessionId': 'debug-session',
+                'runId': 'schema-debug',
+                'hypothesisId': 'H1',
+                'location': 'saleor/urls.py:urlpatterns',
+                'message': 'URL pattern verification',
+                'data': {
+                    'total_patterns': len(urlpatterns),
+                    'first_pattern': first_pattern_str,
+                    'graphql_patterns': graphql_patterns_summary
+                }
+            }) + '
+')
+    except Exception:
+        pass
+    # #endregion
 
