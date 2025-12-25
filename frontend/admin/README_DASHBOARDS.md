@@ -175,7 +175,7 @@ Executive dashboard can filter by region:
 ## Performance Optimizations
 
 1. **Polling Intervals**: Different intervals for different data types
-2. **Cache Policy**: Uses `cache-and-network` for fresh data
+2. **Cache Policy**: Uses `cache-first` for fresh data (Apollo Client 3.x compatible)
 3. **Lazy Loading**: Charts load only when visible
 4. **Debounced Filters**: Date/region filters are debounced
 
