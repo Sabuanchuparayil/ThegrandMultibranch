@@ -125,8 +125,8 @@ class InventoryProductType(graphene.ObjectType):
     name = graphene.String()
 
 
-class InventoryProductVariantType(graphene.ObjectType):
-    """Minimal ProductVariant type for admin inventory views (renamed to avoid conflict with Saleor's ProductVariantType)."""
+class InventoryInventoryProductVariantType(graphene.ObjectType):
+    """Minimal ProductVariant type for admin inventory views (renamed to avoid conflict with Saleor's InventoryProductVariantType)."""
 
     id = graphene.ID()
     name = graphene.String()
@@ -141,7 +141,7 @@ class BranchInventoryType(graphene.ObjectType):
     """Branch Inventory GraphQL Type (no graphene-django dependency)."""
 
     id = graphene.ID()
-    product_variant = graphene.Field(ProductVariantType)
+    product_variant = graphene.Field(InventoryProductVariantType)
     branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
     quantity = graphene.Int()
     reserved_quantity = graphene.Int()
@@ -163,7 +163,7 @@ class StockMovementType(graphene.ObjectType):
 
     id = graphene.ID()
     branch = graphene.Field(lambda: _get_branch_type())  # Lazy import to avoid duplicate type registration
-    product_variant = graphene.Field(ProductVariantType)
+    product_variant = graphene.Field(InventoryProductVariantType)
     movement_type = graphene.String()
     quantity = graphene.Int()
     reference_number = graphene.String()
