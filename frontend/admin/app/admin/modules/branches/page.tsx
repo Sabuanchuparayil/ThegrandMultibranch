@@ -127,7 +127,23 @@ export default function BranchesModule() {
               <div className="ml-3 flex-1">
                 <p className="text-sm text-yellow-700">
                   <strong>Backend connection error:</strong> Unable to load branches from the API. Showing sample data for demonstration purposes.
-                  {error.message && <span className="block mt-1 text-xs">Error: {error.message}</span>}
+                  <br />
+                  <span className="text-xs text-yellow-600 mt-1 block font-mono">
+                    Error: {error.message || 'Failed to fetch'}
+                    {error.networkError && (
+                      <span className="block mt-1">
+                        Network: {error.networkError.message || 'Unknown network error'}
+                        {'statusCode' in error.networkError && (
+                          <span className="block">Status: {error.networkError.statusCode}</span>
+                        )}
+                      </span>
+                    )}
+                    {process.env.NODE_ENV === 'development' && (
+                      <span className="block mt-1 text-xs opacity-75">
+                        Check browser console for full error details
+                      </span>
+                    )}
+                  </span>
                 </p>
                 <button
                   onClick={clearError}

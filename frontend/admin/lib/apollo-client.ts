@@ -50,13 +50,18 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
   }
 
   if (networkError) {
-    // Log network errors but don't spam console
+    // Log network errors with full details for debugging
     const errorMessage = networkError.message || 'Network error';
+    const errorStatus = 'statusCode' in networkError ? networkError.statusCode : 'unknown';
+    const errorName = networkError.name || 'NetworkError';
     
-    // Only log if it's not a CORS error (which we expect during development)
-    if (!errorMessage.includes('CORS') && !errorMessage.includes('Failed to fetch')) {
-      console.error(`[Network error]: ${errorMessage}`);
-    }
+    // Always log network errors with full context for debugging
+    console.error(`[Network error]: ${errorName} - ${errorMessage}`, {
+      statusCode: errorStatus,
+      operation: operation?.operationName,
+      variables: operation?.variables,
+      url: operation?.getContext()?.uri || 'unknown',
+    });
     
     // Handle 401 unauthorized errors
     if ('statusCode' in networkError && networkError.statusCode === 401) {
