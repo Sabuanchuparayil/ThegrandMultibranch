@@ -201,6 +201,35 @@ def _unique_bases(bases):
 query_bases = []
 if _SALEOR_AVAILABLE and SaleorQuery is not None:
     query_bases.append(SaleorQuery)
+    # Log SaleorQuery fields for debugging
+    if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+        saleor_fields = list(SaleorQuery._meta.fields.keys())
+        _log(
+            "grandgold_graphql/schema.py:compose",
+            "SaleorQuery included in schema composition",
+            {
+                "field_count": len(saleor_fields),
+                "has_products": "products" in saleor_fields,
+                "has_orders": "orders" in saleor_fields,
+                "has_users": "users" in saleor_fields,
+            },
+            "H4",
+        )
+    else:
+        _log(
+            "grandgold_graphql/schema.py:compose",
+            "SaleorQuery included but has no _meta.fields",
+            {},
+            "H4",
+        )
+else:
+    _log(
+        "grandgold_graphql/schema.py:compose",
+        "SaleorQuery NOT included in schema composition",
+        {"saleor_available": _SALEOR_AVAILABLE, "saleor_query_is_none": SaleorQuery is None},
+        "H4",
+    )
+
 query_bases.extend([InventoryQueries, GrandGoldQueries])
 if _BRANCHES_AVAILABLE and BranchQueries is not None:
     query_bases.append(BranchQueries)
@@ -217,6 +246,31 @@ if len(query_bases) == 1:
     Query = query_bases[0]
 else:
     Query = type("Query", tuple(query_bases), {})
+    
+# Log final Query class fields
+try:
+    if hasattr(Query, '_meta') and hasattr(Query._meta, 'fields'):
+        final_fields = list(Query._meta.fields.keys())
+        _log(
+            "grandgold_graphql/schema.py:final_query",
+            "Final Query class created",
+            {
+                "field_count": len(final_fields),
+                "has_products": "products" in final_fields,
+                "has_orders": "orders" in final_fields,
+                "has_users": "users" in final_fields,
+                "has_branches": "branches" in final_fields,
+                "sample_fields": final_fields[:15],
+            },
+            "H4",
+        )
+except Exception as e:
+    _log(
+        "grandgold_graphql/schema.py:final_query",
+        "Could not inspect final Query class",
+        {"error": str(e)},
+        "H4",
+    )
 
 
 # Build mutation bases - ensure SaleorMutation is first if available
