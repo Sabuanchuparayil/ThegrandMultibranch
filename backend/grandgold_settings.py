@@ -600,6 +600,21 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
 if 'MIDDLEWARE' not in globals():
     MIDDLEWARE = []
 
+# Add GraphQL schema logging middleware (for debugging)
+try:
+    from saleor.graphql.middleware import GraphQLSchemaLoggingMiddleware
+    if 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware' not in MIDDLEWARE:
+        # Add after SecurityMiddleware but before other middleware
+        try:
+            security_index = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')
+            MIDDLEWARE.insert(security_index + 1, 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware')
+        except ValueError:
+            # If SecurityMiddleware not found, add at the beginning
+            MIDDLEWARE.insert(0, 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware')
+except ImportError:
+    # Middleware not available, skip
+    pass
+
 # Add CORS middleware early (before CommonMiddleware) to handle preflight requests
 # CORS middleware must be added before CommonMiddleware to intercept OPTIONS requests
 # Priority: Insert BEFORE CommonMiddleware (if exists), otherwise use fallback strategies
