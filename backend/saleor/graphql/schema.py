@@ -150,5 +150,14 @@ except Exception as e:
                 f"Final error: {final_error}. This indicates a fundamental issue with graphene installation."
             ) from final_error
 
+# Final safety check: ensure schema is never None before export
+# This should never trigger due to the error handling above, but provides defense in depth
+if schema is None:
+    raise RuntimeError(
+        "CRITICAL: schema is None after all creation attempts. "
+        "This should never happen and indicates a serious configuration issue. "
+        "Please check the error logs above for details."
+    )
+
 # Export for use in URLs/views
 __all__ = ['schema', 'Query', 'Mutation']
