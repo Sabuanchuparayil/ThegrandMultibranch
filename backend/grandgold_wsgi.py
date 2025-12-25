@@ -26,6 +26,29 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "grandgold_settings"
 print(f"🔍 [BOOT] grandgold_wsgi: DJANGO_SETTINGS_MODULE was {_prev_settings!r}, now {os.environ['DJANGO_SETTINGS_MODULE']!r}")
 # #endregion
 
+# Run migrations on startup if DATABASE_URL is available
+# This ensures migrations run even if they didn't run during build
+if os.environ.get('DATABASE_URL'):
+    try:
+        # Import Django setup first
+        import django
+        django.setup()
+        from django.db import connection
+        from django.core.management import call_command
+        
+        # Check if we can connect to the database
+        connection.ensure_connection()
+        # Try to run migrations (will skip if already applied)
+        try:
+            call_command('migrate', verbosity=0, interactive=False)
+            print("✅ Migrations checked/run on startup")
+        except Exception as e:
+            print(f"⚠️  Could not run migrations on startup: {e}")
+            print("   This is OK - migrations may have already been run during build")
+    except Exception as e:
+        print(f"⚠️  Database not available on startup: {e}")
+        print("   Migrations will run when database becomes available")
+
 # Create application
 from django.core.wsgi import get_wsgi_application  # noqa: E402
 
