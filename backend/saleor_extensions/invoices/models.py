@@ -20,10 +20,11 @@ class Invoice(models.Model):
     invoice_number = models.CharField(max_length=100, unique=True)
     
     # Link to Saleor Order
+    # Use unique related_name to avoid conflict with Saleor's invoice app (if it exists)
     order = models.ForeignKey(
         'order.Order',
         on_delete=models.PROTECT,
-        related_name='invoices'
+        related_name='extension_invoices'  # Changed from 'invoices' to avoid conflict
     )
     
     # Branch and region
