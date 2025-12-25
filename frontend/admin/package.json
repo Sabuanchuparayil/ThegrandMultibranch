@@ -19,6 +19,7 @@
     "react-dom": "19.2.3",
     "react-hook-form": "^7.69.0",
     "recharts": "^3.6.0",
+    "typescript": "^5",
     "zod": "^4.2.1"
   },
   "devDependencies": {
@@ -28,7 +29,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "tailwindcss": "^4"
   }
 }
