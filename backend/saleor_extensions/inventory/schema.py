@@ -12,8 +12,8 @@ from saleor_extensions.inventory.models import (
     LowStockAlert,
 )
 from saleor_extensions.branches.models import Branch
-# Import BranchType from branches schema to avoid duplicate type definition
-from saleor_extensions.branches.schema import BranchType
+# Use string reference to BranchType to avoid duplicate type registration
+# BranchType is defined in saleor_extensions.branches.schema
 
 # Try to import BaseMutation from Saleor, fallback to graphene.Mutation
 try:
@@ -72,7 +72,7 @@ class BranchInventoryType(graphene.ObjectType):
 
     id = graphene.ID()
     product_variant = graphene.Field(ProductVariantType)
-    branch = graphene.Field(BranchType)
+    branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
     quantity = graphene.Int()
     reserved_quantity = graphene.Int()
     low_stock_threshold = graphene.Int()
@@ -92,7 +92,7 @@ class StockMovementType(graphene.ObjectType):
     """Stock Movement GraphQL Type (no graphene-django dependency)."""
 
     id = graphene.ID()
-    branch = graphene.Field(BranchType)
+    branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
     product_variant = graphene.Field(ProductVariantType)
     movement_type = graphene.String()
     quantity = graphene.Int()
@@ -107,8 +107,8 @@ class StockTransferType(graphene.ObjectType):
 
     id = graphene.ID()
     transfer_number = graphene.String()
-    from_branch = graphene.Field(BranchType)
-    to_branch = graphene.Field(BranchType)
+    from_branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
+    to_branch = graphene.Field("BranchType")  # String reference to avoid duplicate type registration
     quantity = graphene.Int()
     status = graphene.String()
     requested_by = graphene.String()
