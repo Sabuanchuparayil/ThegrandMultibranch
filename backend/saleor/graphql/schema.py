@@ -24,6 +24,19 @@ from saleor_extensions.inventory.schema import (
     InventoryMutations,
 )
 
+# Import branches queries and mutations
+try:
+    from saleor_extensions.branches.schema import (
+        BranchQueries,
+        BranchMutations,
+    )
+    _BRANCHES_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Branches schema not available: {e}")
+    _BRANCHES_AVAILABLE = False
+    BranchQueries = graphene.ObjectType
+    BranchMutations = graphene.ObjectType
+
 # Import dashboard/reports queries
 try:
     from saleor_extensions.reports.schema import DashboardQueries
@@ -35,32 +48,49 @@ except ImportError:
 
 # Extend Query with custom queries
 if _SALEOR_AVAILABLE:
+    # Build list of query classes to inherit from
+    query_classes = [SaleorQuery, InventoryQueries]
+    if _BRANCHES_AVAILABLE:
+        query_classes.append(BranchQueries)
     if _DASHBOARD_AVAILABLE:
-        class Query(SaleorQuery, InventoryQueries, DashboardQueries, graphene.ObjectType):
-            """Extended Query class combining Saleor, inventory, and dashboard queries"""
-            pass
-    else:
-        class Query(SaleorQuery, InventoryQueries, graphene.ObjectType):
-            """Extended Query class combining Saleor and inventory queries"""
-            pass
+        query_classes.append(DashboardQueries)
+    query_classes.append(graphene.ObjectType)
     
-    # Extend Mutation with custom mutations
-    class Mutation(SaleorMutation, InventoryMutations, graphene.ObjectType):
+    class Query(*query_classes):
+        """Extended Query class combining Saleor and custom queries"""
+        pass
+    
+    # Build list of mutation classes to inherit from
+    mutation_classes = [SaleorMutation, InventoryMutations]
+    if _BRANCHES_AVAILABLE:
+        mutation_classes.append(BranchMutations)
+    mutation_classes.append(graphene.ObjectType)
+    
+    class Mutation(*mutation_classes):
         """Extended Mutation class combining Saleor and custom mutations"""
         pass
 else:
     # Standalone schema without Saleor
+    # Build list of query classes to inherit from
+    query_classes = [InventoryQueries]
+    if _BRANCHES_AVAILABLE:
+        query_classes.append(BranchQueries)
     if _DASHBOARD_AVAILABLE:
-        class Query(InventoryQueries, DashboardQueries, graphene.ObjectType):
-            """Query class with inventory and dashboard queries"""
-            pass
-    else:
-        class Query(InventoryQueries, graphene.ObjectType):
-            """Query class with inventory queries only"""
-            pass
+        query_classes.append(DashboardQueries)
+    query_classes.append(graphene.ObjectType)
     
-    class Mutation(InventoryMutations, graphene.ObjectType):
-        """Mutation class with inventory mutations only"""
+    class Query(*query_classes):
+        """Query class with custom queries"""
+        pass
+    
+    # Build list of mutation classes to inherit from
+    mutation_classes = [InventoryMutations]
+    if _BRANCHES_AVAILABLE:
+        mutation_classes.append(BranchMutations)
+    mutation_classes.append(graphene.ObjectType)
+    
+    class Mutation(*mutation_classes):
+        """Mutation class with custom mutations"""
         pass
 
 
