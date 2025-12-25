@@ -110,9 +110,12 @@ def _graphql_entrypoint(request):
         # Saleor's resolvers expect a context with 'app' and 'user' attributes
         try:
             from saleor.graphql.core.context import SaleorContext
-            # SaleorContext expects request and optionally app
+            # SaleorContext inherits from HttpRequest, so pass request as positional arg
             # It will handle user extraction from request automatically
-            context = SaleorContext(request=request, app=None)
+            context = SaleorContext(request)
+            # Ensure app attribute is set (can be None)
+            if not hasattr(context, 'app'):
+                context.app = None
         except (ImportError, Exception) as e:
             # Fallback: create a simple context object with required attributes
             class SimpleContext:
