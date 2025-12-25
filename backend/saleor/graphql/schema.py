@@ -8,12 +8,27 @@ instead of Saleor's default schema.
 import graphene
 
 # Import Saleor's core schema components
+# CRITICAL: Import Saleor's schema module first to ensure all types are registered
 try:
+    # Import Saleor's full schema module first - this registers all types (Product, ProductVariant, etc.)
+    import saleor.graphql.schema as saleor_schema_module
+    print(f"✅ Imported Saleor's schema module: {getattr(saleor_schema_module, '__file__', 'unknown')}")
+    
+    # Now import the Query and Mutation classes
     from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
-    from saleor.graphql import schema as saleor_schema_module
     _SALEOR_AVAILABLE = True
-except ImportError:
-    print("Warning: Saleor schema not available, using standalone schema")
+    print("✅ Saleor Query and Mutation classes imported successfully")
+except ImportError as import_error:
+    print(f"⚠️  Warning: Saleor schema not available: {import_error}")
+    import traceback
+    traceback.print_exc()
+    _SALEOR_AVAILABLE = False
+    SaleorQuery = graphene.ObjectType
+    SaleorMutation = graphene.ObjectType
+except Exception as e:
+    print(f"❌ ERROR importing Saleor schema: {e}")
+    import traceback
+    traceback.print_exc()
     _SALEOR_AVAILABLE = False
     SaleorQuery = graphene.ObjectType
     SaleorMutation = graphene.ObjectType

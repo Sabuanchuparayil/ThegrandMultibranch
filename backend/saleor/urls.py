@@ -13,69 +13,82 @@ extended_schema = None
 _EXTENDED_SCHEMA_AVAILABLE = False
 
 try:
-    # CRITICAL: Use importlib to explicitly load our LOCAL schema file
-    # This ensures we get our extended schema, not Saleor's default
+    # CRITICAL FIX: First ensure Saleor's core modules are imported
+    # This is necessary for our schema to properly extend Saleor's types
     import os
     import sys
-    import importlib.util
     
     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    local_schema_path = os.path.join(backend_dir, 'saleor', 'graphql', 'schema.py')
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
     
-    print(f"🔍 CRITICAL: Loading schema from local file: {local_schema_path}")
+    # Ensure Saleor's graphql.core is imported first (needed for Product, ProductVariant types)
+    try:
+        import saleor.graphql.core
+        print("✅ Saleor graphql.core imported successfully")
+    except Exception as core_error:
+        print(f"⚠️  Warning: Could not import saleor.graphql.core: {core_error}")
+    
+    # Now import our extended schema using standard import (not importlib)
+    # The sys.path manipulation above ensures we get our local schema
+    # But we need to be careful about module caching
+    local_schema_path = os.path.join(backend_dir, 'saleor', 'graphql', 'schema.py')
+    print(f"🔍 Attempting to import schema from: {local_schema_path}")
     print(f"🔍 File exists: {os.path.exists(local_schema_path)}")
     
-    if not os.path.exists(local_schema_path):
-        raise FileNotFoundError(f"Local schema file not found: {local_schema_path}")
-    
-    # Remove any existing saleor.graphql.schema from sys.modules to force reload
-    modules_to_remove = [k for k in sys.modules.keys() if k.startswith('saleor.graphql.schema')]
+    # Remove our local schema from cache if it exists, to force fresh import
+    modules_to_remove = [k for k in list(sys.modules.keys()) if k == 'saleor.graphql.schema']
     for mod in modules_to_remove:
         print(f"🔍 Removing from cache: {mod}")
         del sys.modules[mod]
     
-    # Ensure backend directory is in path
-    if backend_dir not in sys.path:
-        sys.path.insert(0, backend_dir)
-        print(f"🔍 Added backend_dir to sys.path: {backend_dir}")
+    # Also ensure saleor.graphql is imported (needed for proper module resolution)
+    if 'saleor.graphql' not in sys.modules:
+        try:
+            import saleor.graphql
+            print("✅ saleor.graphql module imported")
+        except:
+            pass
     
-    # Use importlib to explicitly load our local schema file
-    spec = importlib.util.spec_from_file_location("saleor.graphql.schema", local_schema_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not create spec from file: {local_schema_path}")
-    
-    schema_module = importlib.util.module_from_spec(spec)
-    # Add to sys.modules with the correct name so imports work
-    sys.modules['saleor.graphql.schema'] = schema_module
-    spec.loader.exec_module(schema_module)
-    
-    # Get the schema from the module
-    extended_schema = getattr(schema_module, 'schema', None)
-    
-    if extended_schema is None:
-        raise AttributeError("'schema' attribute not found in loaded module")
+    # Now import our schema - Python should use our local file since backend_dir is first in path
+    from saleor.graphql.schema import schema as extended_schema
     
     _EXTENDED_SCHEMA_AVAILABLE = True
-    print("✅ Successfully loaded extended GraphQL schema from LOCAL file")
-    print(f"   Schema module: {schema_module.__file__}")
+    print("✅ Successfully imported extended GraphQL schema")
+    print(f"   Schema module: {extended_schema.__module__ if hasattr(extended_schema, '__module__') else 'unknown'}")
     print(f"   Schema type: {type(extended_schema)}")
     
-    # Verify it's actually our schema by checking if it has branches
+    # Verify it's actually our schema by checking if it has branches AND Saleor fields
     if hasattr(extended_schema, 'query_type'):
         try:
             query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
-            if 'branches' in query_fields:
-                print(f"✅ VERIFIED: 'branches' query is present in schema (total fields: {len(query_fields)})")
-            else:
-                print(f"❌ CRITICAL: 'branches' query NOT found. Available fields: {query_fields[:20]}")
-                print(f"   This means the wrong schema is being loaded!")
+            
+            # Check for both our custom fields and Saleor's default fields
+            has_branches = 'branches' in query_fields
+            has_products = 'products' in query_fields  # Saleor's default
+            has_orders = 'orders' in query_fields  # Saleor's default
+            
+            print(f"   Query fields count: {len(query_fields)}")
+            print(f"   'branches' query present: {has_branches}")
+            print(f"   'products' query present: {has_products} (Saleor default)")
+            print(f"   'orders' query present: {has_orders} (Saleor default)")
+            
+            if has_branches and has_products:
+                print(f"✅ VERIFIED: Schema has both custom ('branches') and Saleor ('products') queries")
+            elif has_branches and not has_products:
+                print(f"⚠️  WARNING: Schema has 'branches' but missing Saleor's 'products' query")
+                print(f"   Available fields: {query_fields[:30]}")
+            elif not has_branches:
+                print(f"❌ CRITICAL: 'branches' query NOT found. Available fields: {query_fields[:30]}")
         except Exception as verify_error:
             print(f"⚠️  Could not verify schema fields: {verify_error}")
+            import traceback
+            traceback.print_exc()
     else:
         print("❌ CRITICAL: Schema has no query_type attribute")
         
 except Exception as e:
-    print(f"❌ CRITICAL ERROR: Failed to load extended GraphQL schema: {e}")
+    print(f"❌ CRITICAL ERROR: Failed to import extended GraphQL schema: {e}")
     print(f"   Error type: {type(e).__name__}")
     print(f"   Traceback: {traceback.format_exc()}")
     _EXTENDED_SCHEMA_AVAILABLE = False
