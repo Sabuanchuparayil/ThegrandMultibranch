@@ -72,9 +72,11 @@ def _get_branch_type():
         # #endregion
         raise
 
-# Try to import BaseMutation from Saleor, fallback to graphene.Mutation
+# Try to import BaseMutation and Error from Saleor, fallback to graphene.Mutation
 try:
     from saleor.graphql.core.mutations import BaseMutation
+    from saleor.graphql.core.types import Error
+    _SALEOR_AVAILABLE = True
 except ImportError:
     # Fallback if Saleor's BaseMutation is not available
     class BaseMutation(graphene.Mutation):
@@ -381,6 +383,7 @@ class StockAdjustment(BaseMutation):
     
     class Meta:
         description = "Adjust stock quantity for a product variant at a branch"
+        error_type_class = Error
     
     class Arguments:
         input = StockAdjustmentInput(required=True)
@@ -449,6 +452,7 @@ class BulkStockAdjustment(BaseMutation):
     
     class Meta:
         description = "Adjust stock quantities for multiple product variants at a branch in a single operation"
+        error_type_class = Error
     
     class Arguments:
         branch_id = graphene.ID(required=True)
@@ -540,6 +544,7 @@ class StockTransferCreate(BaseMutation):
     
     class Meta:
         description = "Create a stock transfer request between two branches"
+        error_type_class = Error
     
     class Arguments:
         input = StockTransferInput(required=True)
@@ -596,6 +601,7 @@ class StockTransferProcess(BaseMutation):
     
     class Meta:
         description = "Process or approve a pending stock transfer between branches"
+        error_type_class = Error
     
     class Arguments:
         transfer_id = graphene.ID(required=True)
@@ -674,6 +680,7 @@ class InventoryUpdateLowStockThreshold(BaseMutation):
     
     class Meta:
         description = "Update the low stock threshold for a specific inventory item"
+        error_type_class = Error
     
     class Arguments:
         inventory_id = graphene.ID(required=True)

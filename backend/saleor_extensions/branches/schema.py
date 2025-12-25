@@ -203,6 +203,7 @@ class BranchCreate(BaseMutation):
     
     class Meta:
         description = "Create a new branch"
+        error_type_class = Error
     
     branch = graphene.Field(BranchType)
     errors = graphene.List(Error)
@@ -256,6 +257,7 @@ class BranchUpdate(BaseMutation):
     
     class Meta:
         description = "Update an existing branch"
+        error_type_class = Error
     
     branch = graphene.Field(BranchType)
     errors = graphene.List(Error)
@@ -326,6 +328,7 @@ class BranchDelete(BaseMutation):
     
     class Meta:
         description = "Delete a branch"
+        error_type_class = Error
     
     success = graphene.Boolean()
     errors = graphene.List(Error)
