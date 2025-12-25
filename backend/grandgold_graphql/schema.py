@@ -106,11 +106,20 @@ try:
     finally:
         if _local_backup:
             sys.modules['saleor.graphql'] = _local_backup
-except Exception as e1:
+    except Exception as e1:
+        print(f"⚠️ [SCHEMA] Strategy 1 failed: {e1}")
     # Strategy 2: Import Query/Mutation directly from core.schema
     try:
         from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
         _SALEOR_AVAILABLE = True
+        print(f"✅ [SCHEMA] Strategy 2 succeeded - Imported from core.schema")
+        print(f"   SaleorQuery module: {SaleorQuery.__module__}")
+        if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+            fields = list(SaleorQuery._meta.fields.keys())
+            print(f"   SaleorQuery has {len(fields)} fields")
+            print(f"   Has products: {'products' in fields}")
+            print(f"   Has orders: {'orders' in fields}")
+            print(f"   Has users: {'users' in fields}")
         _log(
             "grandgold_graphql/schema.py:import_saleor",
             "Imported Saleor core schema (strategy 2)",
