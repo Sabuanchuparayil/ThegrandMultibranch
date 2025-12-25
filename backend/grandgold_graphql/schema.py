@@ -50,30 +50,92 @@ _log(
 
 
 # --- Import Saleor core schema (installed) ---
+# Try multiple import strategies to ensure we get Saleor's Query/Mutation
+SaleorQuery = None
+SaleorMutation = None
+_SALEOR_AVAILABLE = False
+
+# Strategy 1: Import from core.schema (preferred)
 try:
     from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
-
     _SALEOR_AVAILABLE = True
     _log(
         "grandgold_graphql/schema.py:import_saleor",
-        "Imported Saleor core schema",
+        "Imported Saleor core schema (strategy 1)",
         {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
         "H3",
     )
-except Exception as e:
-    _SALEOR_AVAILABLE = False
-    # IMPORTANT: Do NOT fall back to graphene.ObjectType here.
-    # If we include graphene.ObjectType alongside other graphene.ObjectType subclasses,
-    # Python can hit an MRO resolution error. We instead omit SaleorQuery/SaleorMutation
-    # entirely when Saleor import fails.
-    SaleorQuery = None
-    SaleorMutation = None
-    _log(
-        "grandgold_graphql/schema.py:import_saleor",
-        "Failed to import Saleor core schema",
-        {"error": str(e), "error_type": type(e).__name__},
-        "H3",
-    )
+except Exception as e1:
+    # Strategy 2: Try importing Saleor's actual schema object and extract Query/Mutation
+    try:
+        from saleor.graphql import schema as saleor_schema
+        if hasattr(saleor_schema, 'Query'):
+            SaleorQuery = saleor_schema.Query
+        if hasattr(saleor_schema, 'Mutation'):
+            SaleorMutation = saleor_schema.Mutation
+        if SaleorQuery and SaleorMutation:
+            _SALEOR_AVAILABLE = True
+            _log(
+                "grandgold_graphql/schema.py:import_saleor",
+                "Imported Saleor schema (strategy 2)",
+                {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
+                "H3",
+            )
+        else:
+            raise ImportError("Saleor schema object missing Query or Mutation")
+    except Exception as e2:
+        # Strategy 3: Try importing from graphql.schema directly
+        try:
+            import sys
+            # Temporarily remove our local saleor.graphql if it exists
+            _local_backup = None
+            if 'saleor.graphql' in sys.modules:
+                _local_backup = sys.modules.pop('saleor.graphql')
+            try:
+                from saleor.graphql.schema import Query as SaleorQuery, Mutation as SaleorMutation
+                _SALEOR_AVAILABLE = True
+                _log(
+                    "grandgold_graphql/schema.py:import_saleor",
+                    "Imported Saleor schema (strategy 3)",
+                    {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
+                    "H3",
+                )
+            finally:
+                if _local_backup:
+                    sys.modules['saleor.graphql'] = _local_backup
+        except Exception as e3:
+            _SALEOR_AVAILABLE = False
+            SaleorQuery = None
+            SaleorMutation = None
+            _log(
+                "grandgold_graphql/schema.py:import_saleor",
+                "Failed to import Saleor core schema (all strategies failed)",
+                {
+                    "error1": str(e1),
+                    "error2": str(e2),
+                    "error3": str(e3),
+                    "error_type": type(e3).__name__,
+                },
+                "H3",
+            )
+
+# Verify we got valid Query/Mutation classes
+if _SALEOR_AVAILABLE and SaleorQuery and SaleorMutation:
+    # Check if they have the expected structure
+    if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+        fields = list(SaleorQuery._meta.fields.keys())
+        _log(
+            "grandgold_graphql/schema.py:verify_saleor",
+            "SaleorQuery fields verified",
+            {
+                "field_count": len(fields),
+                "has_products": "products" in fields,
+                "has_orders": "orders" in fields,
+                "has_users": "users" in fields,
+                "sample_fields": fields[:10],
+            },
+            "H3",
+        )
 
 
 # --- Import our extensions ---
