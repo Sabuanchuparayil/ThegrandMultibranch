@@ -12,6 +12,8 @@ from saleor_extensions.inventory.models import (
     LowStockAlert,
 )
 from saleor_extensions.branches.models import Branch
+# Import BranchType from branches schema to avoid duplicate type definition
+from saleor_extensions.branches.schema import BranchType
 
 # Try to import BaseMutation from Saleor, fallback to graphene.Mutation
 try:
@@ -62,12 +64,7 @@ class ProductVariantType(graphene.ObjectType):
     product = graphene.Field(ProductType)
 
 
-class BranchType(graphene.ObjectType):
-    """Minimal Branch type for inventory views."""
-
-    id = graphene.ID()
-    name = graphene.String()
-    code = graphene.String()
+# BranchType is imported from saleor_extensions.branches.schema to avoid duplicate type definition
 
 
 class BranchInventoryType(graphene.ObjectType):
