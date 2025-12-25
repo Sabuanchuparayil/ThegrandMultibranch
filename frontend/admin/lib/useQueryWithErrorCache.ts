@@ -5,7 +5,7 @@ import { QueryResult, OperationVariables, DocumentNode } from '@apollo/client';
 import { useQuery } from '@apollo/client';
 import { useErrorCache } from '@/hooks/useErrorCache';
 
-interface UseQueryWithErrorCacheOptions<TData = any, TVariables = OperationVariables> {
+interface UseQueryWithErrorCacheOptions<TData = any, TVariables extends OperationVariables = OperationVariables> {
   query: DocumentNode;
   queryName: string;
   variables?: TVariables;
@@ -17,7 +17,7 @@ interface UseQueryWithErrorCacheOptions<TData = any, TVariables = OperationVaria
  * Wrapper around useQuery that implements error caching
  * Prevents showing the same error repeatedly within a time window
  */
-export function useQueryWithErrorCache<TData = any, TVariables = OperationVariables>({
+export function useQueryWithErrorCache<TData = any, TVariables extends OperationVariables = OperationVariables>({
   query,
   queryName,
   variables,
