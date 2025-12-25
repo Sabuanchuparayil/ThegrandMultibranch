@@ -129,7 +129,11 @@ def main():
         'branches': 'branches',
         'regions': 'regions',
         'currency': 'currencies',
+        'currency': 'exchange_rates',
         'inventory': 'branch_inventory',
+        'inventory': 'stock_movements',
+        'inventory': 'stock_transfers',
+        'inventory': 'low_stock_alerts',
     }
     
     all_exist = True
