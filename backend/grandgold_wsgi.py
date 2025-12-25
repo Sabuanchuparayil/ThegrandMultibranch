@@ -84,7 +84,9 @@ if os.environ.get('DATABASE_URL'):
                         # Show the actual error for debugging
                         error_output = result.stderr or result.stdout or "No error output"
                         print(f"⚠️  Migration subprocess failed (exit code {result.returncode})")
-                        print(f"   Error: {error_output[:500]}")  # First 500 chars
+                        # Print full error (up to 2000 chars to see more context)
+                        print(f"   STDOUT: {result.stdout[:2000] if result.stdout else '(empty)'}")
+                        print(f"   STDERR: {error_output[:2000] if error_output else '(empty)'}")
                         print("   This might be OK if migrations were already run during build")
                 except Exception as e2:
                     print(f"⚠️  Could not run migrations on startup: {e2}")
