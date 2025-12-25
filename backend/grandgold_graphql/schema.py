@@ -135,27 +135,46 @@ def _unique_bases(bases):
     return out
 
 
-query_bases = _unique_bases([SaleorQuery, InventoryQueries, GrandGoldQueries])
-if _BRANCHES_AVAILABLE:
-    query_bases = _unique_bases(query_bases + [BranchQueries])
-if _DASHBOARD_AVAILABLE:
-    query_bases = _unique_bases(query_bases + [DashboardQueries])
+# Build query bases - ensure SaleorQuery is first if available
+query_bases = []
+if _SALEOR_AVAILABLE and SaleorQuery is not None:
+    query_bases.append(SaleorQuery)
+query_bases.extend([InventoryQueries, GrandGoldQueries])
+if _BRANCHES_AVAILABLE and BranchQueries is not None:
+    query_bases.append(BranchQueries)
+if _DASHBOARD_AVAILABLE and DashboardQueries is not None:
+    query_bases.append(DashboardQueries)
+
+query_bases = _unique_bases(query_bases)
 
 if not query_bases:
     query_bases = [graphene.ObjectType]
 
+# Use proper class inheritance instead of type() for better compatibility
+if len(query_bases) == 1:
+    Query = query_bases[0]
+else:
+    Query = type("Query", tuple(query_bases), {})
 
-Query = type("Query", tuple(query_bases), {})
 
+# Build mutation bases - ensure SaleorMutation is first if available
+mutation_bases = []
+if _SALEOR_AVAILABLE and SaleorMutation is not None:
+    mutation_bases.append(SaleorMutation)
+mutation_bases.append(InventoryMutations)
+if _BRANCHES_AVAILABLE and BranchMutations is not None:
+    mutation_bases.append(BranchMutations)
 
-mutation_bases = _unique_bases([SaleorMutation, InventoryMutations])
-if _BRANCHES_AVAILABLE:
-    mutation_bases = _unique_bases(mutation_bases + [BranchMutations])
+mutation_bases = _unique_bases(mutation_bases)
 
 if not mutation_bases:
     mutation_bases = [graphene.ObjectType]
 
-Mutation = type("Mutation", tuple(mutation_bases), {})
+# Use proper class inheritance instead of type() for better compatibility
+if len(mutation_bases) == 1:
+    Mutation = mutation_bases[0]
+else:
+    Mutation = type("Mutation", tuple(mutation_bases), {})
 
 
 try:
