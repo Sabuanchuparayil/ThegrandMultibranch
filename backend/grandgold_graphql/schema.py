@@ -106,8 +106,8 @@ try:
     finally:
         if _local_backup:
             sys.modules['saleor.graphql'] = _local_backup
-    except Exception as e1:
-        print(f"⚠️ [SCHEMA] Strategy 1 failed: {e1}")
+except Exception as e1:
+    print(f"⚠️ [SCHEMA] Strategy 1 failed: {e1}")
     # Strategy 2: Import Query/Mutation directly from core.schema
     try:
         from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
