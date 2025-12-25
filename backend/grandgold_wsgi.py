@@ -49,7 +49,8 @@ except Exception:
     pass
 
 # Run migrations on startup if DATABASE_URL is available
-# This ensures migrations run even if they didn't run during build
+# NOTE: Migrations should be generated locally and committed to git
+# This only applies existing migrations, it does not create new ones
 if os.environ.get('DATABASE_URL'):
     try:
         # Import Django setup first
