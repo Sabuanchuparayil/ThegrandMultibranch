@@ -669,8 +669,12 @@ if 'saleor_extensions.audit.middleware.AuditLogMiddleware' not in MIDDLEWARE:  #
 if 'DATABASE_URL' in os.environ:
     try:
         import dj_database_url
+        db_config = dj_database_url.config(default=os.environ.get('DATABASE_URL'))
         DATABASES = {
-            'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+            'default': db_config,
+            # Saleor may expect a 'replica' database connection
+            # Point it to the same database as default (no actual replica needed)
+            'replica': db_config.copy() if isinstance(db_config, dict) else db_config,
         }
     except ImportError:
         pass
