@@ -12,7 +12,7 @@ const getGraphQLUrl = () => {
   // Use Railway backend URL as fallback
   if (typeof window !== 'undefined') {
     // In browser, use the Railway backend URL
-    return 'https://backend-production-d769.up.railway.app/graphql/';
+    return 'https://backend-production-fb5f.up.railway.app/graphql/';
   }
   
   // Server-side fallback
