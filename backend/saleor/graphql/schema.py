@@ -172,23 +172,93 @@ else:
 # Create the extended schema with error handling
 schema = None
 try:
+    # #region agent log
+    import json
+    import time
+    import os
+    log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+    log_dir = os.path.dirname(log_path)
+    if not os.path.exists(log_dir):
+        log_path = '/tmp/debug.log'
+    try:
+        with open(log_path, 'a') as f:
+            f.write(json.dumps({
+                'timestamp': int(time.time() * 1000),
+                'location': 'saleor/graphql/schema.py:create_schema',
+                'message': 'Creating extended GraphQL schema',
+                'data': {
+                    'saleor_available': _SALEOR_AVAILABLE,
+                    'branches_available': _BRANCHES_AVAILABLE,
+                    'dashboard_available': _DASHBOARD_AVAILABLE,
+                    'query_class': Query.__name__ if 'Query' in globals() else None,
+                    'query_bases': [base.__name__ for base in Query.__bases__] if 'Query' in globals() and hasattr(Query, '__bases__') else []
+                },
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'B'
+            }) + '\n')
+    except:
+        pass
+    # #endregion
+    
     schema = graphene.Schema(query=Query, mutation=Mutation)
     print(f"✅ Extended GraphQL schema created - Branches: {_BRANCHES_AVAILABLE}, Dashboard: {_DASHBOARD_AVAILABLE}, Saleor: {_SALEOR_AVAILABLE}")
     
-    # Verify branches query is in the schema
-    if _BRANCHES_AVAILABLE:
-        try:
-            query_type = schema.query_type
-            if hasattr(query_type, '_meta') and hasattr(query_type._meta, 'fields'):
-                if 'branches' in query_type._meta.fields:
-                    print("✅ 'branches' query verified in schema")
-                else:
-                    print("⚠️  WARNING: 'branches' query NOT found in schema fields")
-                    print(f"   Available query fields: {list(query_type._meta.fields.keys())[:20]}")
-        except Exception as e:
-            print(f"⚠️  Error verifying schema: {e}")
-            import traceback
-            traceback.print_exc()
+    # Verify ALL queries are in the schema (both Saleor defaults and our custom ones)
+    try:
+        query_type = schema.query_type
+        if hasattr(query_type, '_meta') and hasattr(query_type._meta, 'fields'):
+            all_fields = list(query_type._meta.fields.keys())
+            
+            # Check for Saleor's default queries
+            has_products = 'products' in all_fields
+            has_orders = 'orders' in all_fields
+            has_customers = 'customers' in all_fields or 'users' in all_fields
+            
+            # Check for our custom queries
+            has_branches = 'branches' in all_fields
+            has_branch_inventory = 'branchInventory' in all_fields
+            
+            print(f"✅ Schema verification - Total fields: {len(all_fields)}")
+            print(f"   Saleor defaults - 'products': {has_products}, 'orders': {has_orders}, 'customers/users': {has_customers}")
+            print(f"   Custom queries - 'branches': {has_branches}, 'branchInventory': {has_branch_inventory}")
+            
+            if not has_products or not has_orders:
+                print(f"❌ CRITICAL: Missing Saleor default queries!")
+                print(f"   Available fields: {all_fields[:50]}")
+            elif not has_branches:
+                print(f"⚠️  WARNING: 'branches' query NOT found in schema fields")
+                print(f"   Available query fields: {all_fields[:30]}")
+            else:
+                print(f"✅ VERIFIED: Schema has both Saleor defaults AND custom queries")
+            
+            # #region agent log
+            try:
+                with open(log_path, 'a') as f:
+                    f.write(json.dumps({
+                        'timestamp': int(time.time() * 1000),
+                        'location': 'saleor/graphql/schema.py:verify_schema',
+                        'message': 'Schema verification complete',
+                        'data': {
+                            'total_fields': len(all_fields),
+                            'has_products': has_products,
+                            'has_orders': has_orders,
+                            'has_customers': has_customers,
+                            'has_branches': has_branches,
+                            'has_branch_inventory': has_branch_inventory,
+                            'first_30_fields': all_fields[:30]
+                        },
+                        'sessionId': 'debug-session',
+                        'runId': 'schema-load',
+                        'hypothesisId': 'B'
+                    }) + '\n')
+            except:
+                pass
+            # #endregion
+    except Exception as e:
+        print(f"⚠️  Error verifying schema: {e}")
+        import traceback
+        traceback.print_exc()
 except Exception as e:
     print(f"❌ ERROR: Failed to create GraphQL schema: {e}")
     import traceback
