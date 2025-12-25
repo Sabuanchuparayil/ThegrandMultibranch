@@ -137,49 +137,83 @@ except ImportError:
 # Extend Query with custom queries
 if _SALEOR_AVAILABLE:
     # Build list of query classes to inherit from
+    # NOTE: Don't add graphene.ObjectType - all query classes already inherit from it
     query_classes = [SaleorQuery, InventoryQueries]
     if _BRANCHES_AVAILABLE:
         query_classes.append(BranchQueries)
     if _DASHBOARD_AVAILABLE:
         query_classes.append(DashboardQueries)
-    query_classes.append(graphene.ObjectType)
+    # graphene.ObjectType is NOT needed - all classes already inherit from it
     
-    class Query(*query_classes):
-        """Extended Query class combining Saleor and custom queries"""
-        pass
+    try:
+        class Query(*query_classes):
+            """Extended Query class combining Saleor and custom queries"""
+            pass
+        print(f"✅ Created Query class with {len(query_classes)} base classes")
+        print(f"   Base classes: {[cls.__name__ for cls in query_classes]}")
+    except Exception as query_error:
+        print(f"❌ ERROR creating Query class: {query_error}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     # Build list of mutation classes to inherit from
+    # NOTE: Don't add graphene.ObjectType - all mutation classes already inherit from it
     mutation_classes = [SaleorMutation, InventoryMutations]
     if _BRANCHES_AVAILABLE:
         mutation_classes.append(BranchMutations)
-    mutation_classes.append(graphene.ObjectType)
+    # graphene.ObjectType is NOT needed - all classes already inherit from it
     
-    class Mutation(*mutation_classes):
-        """Extended Mutation class combining Saleor and custom mutations"""
-        pass
+    try:
+        class Mutation(*mutation_classes):
+            """Extended Mutation class combining Saleor and custom mutations"""
+            pass
+        print(f"✅ Created Mutation class with {len(mutation_classes)} base classes")
+        print(f"   Base classes: {[cls.__name__ for cls in mutation_classes]}")
+    except Exception as mutation_error:
+        print(f"❌ ERROR creating Mutation class: {mutation_error}")
+        import traceback
+        traceback.print_exc()
+        raise
 else:
     # Standalone schema without Saleor
     # Build list of query classes to inherit from
+    # NOTE: Don't add graphene.ObjectType - all query classes already inherit from it
     query_classes = [InventoryQueries]
     if _BRANCHES_AVAILABLE:
         query_classes.append(BranchQueries)
     if _DASHBOARD_AVAILABLE:
         query_classes.append(DashboardQueries)
-    query_classes.append(graphene.ObjectType)
+    # graphene.ObjectType is NOT needed - all classes already inherit from it
     
-    class Query(*query_classes):
-        """Query class with custom queries"""
-        pass
+    try:
+        class Query(*query_classes):
+            """Query class with custom queries"""
+            pass
+        print(f"✅ Created standalone Query class with {len(query_classes)} base classes")
+    except Exception as query_error:
+        print(f"❌ ERROR creating standalone Query class: {query_error}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     # Build list of mutation classes to inherit from
+    # NOTE: Don't add graphene.ObjectType - all mutation classes already inherit from it
     mutation_classes = [InventoryMutations]
     if _BRANCHES_AVAILABLE:
         mutation_classes.append(BranchMutations)
-    mutation_classes.append(graphene.ObjectType)
+    # graphene.ObjectType is NOT needed - all classes already inherit from it
     
-    class Mutation(*mutation_classes):
-        """Mutation class with custom mutations"""
-        pass
+    try:
+        class Mutation(*mutation_classes):
+            """Mutation class with custom mutations"""
+            pass
+        print(f"✅ Created standalone Mutation class with {len(mutation_classes)} base classes")
+    except Exception as mutation_error:
+        print(f"❌ ERROR creating standalone Mutation class: {mutation_error}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 # Create the extended schema with error handling
