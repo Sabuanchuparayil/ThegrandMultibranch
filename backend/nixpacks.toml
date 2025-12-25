@@ -20,7 +20,8 @@ cmds = [
 cmds = [
   ". .venv/bin/activate && python manage.py collectstatic --noinput || true",
   # Create migrations for custom apps if they don't exist
-  ". .venv/bin/activate && python manage.py makemigrations saleor_extensions.regions saleor_extensions.currency saleor_extensions.branches saleor_extensions.inventory --noinput || echo '⚠️  Migrations already exist or apps not found'",
+  # Use app labels (without saleor_extensions prefix) for makemigrations
+  ". .venv/bin/activate && python manage.py makemigrations regions currency branches inventory --noinput 2>&1 || echo '⚠️  Migrations creation failed or already exist'",
   # Run all migrations (Saleor + custom apps)
   # Note: This requires DATABASE_URL to be set during build
   # If DATABASE_URL is not available, migrations will run on startup instead
