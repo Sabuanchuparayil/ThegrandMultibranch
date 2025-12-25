@@ -97,6 +97,21 @@ else:
 # Create the extended schema
 schema = graphene.Schema(query=Query, mutation=Mutation)
 
+# Debug: Log schema creation and verify branches query exists
+print(f"✅ Extended GraphQL schema created - Branches: {_BRANCHES_AVAILABLE}, Dashboard: {_DASHBOARD_AVAILABLE}, Saleor: {_SALEOR_AVAILABLE}")
+
+# Verify branches query is in the schema
+if _BRANCHES_AVAILABLE:
+    try:
+        query_type = schema.query_type
+        if hasattr(query_type, '_meta') and hasattr(query_type._meta, 'fields'):
+            if 'branches' in query_type._meta.fields:
+                print("✅ 'branches' query verified in schema")
+            else:
+                print("⚠️  WARNING: 'branches' query NOT found in schema fields")
+                print(f"   Available query fields: {list(query_type._meta.fields.keys())[:20]}")
+    except Exception as e:
+        print(f"⚠️  Error verifying schema: {e}")
 
 # Export for use in URLs/views
 __all__ = ['schema', 'Query', 'Mutation']
