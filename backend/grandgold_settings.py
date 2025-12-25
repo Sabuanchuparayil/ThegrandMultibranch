@@ -748,11 +748,10 @@ CORS_ALLOW_METHODS = [
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 
 # URL Configuration
-# Saleor should provide ROOT_URLCONF, but ensure it's set
-# If not provided by Saleor, use Saleor's default URLs
-if 'ROOT_URLCONF' not in globals():
-    # Saleor's default is 'saleor.urls'
-    ROOT_URLCONF = 'saleor.urls'
+# CRITICAL: Always use our URLConf so /graphql/ is overridden with our extended schema.
+# Do NOT rely on 'saleor.urls' resolving to local code; in production Saleor is installed
+# and local `backend/saleor/` may be ignored due to sys.path ordering.
+ROOT_URLCONF = 'grandgold_urls'
 
 # #region agent log
 try:
