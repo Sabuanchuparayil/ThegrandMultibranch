@@ -2,7 +2,6 @@
 GraphQL schema for branches
 """
 import graphene
-from graphene_django import DjangoObjectType
 from django.core.exceptions import ValidationError
 
 from saleor_extensions.branches.models import Branch
@@ -66,49 +65,41 @@ except ImportError:
 # Object Types
 # ============================================================================
 
-class RegionType(DjangoObjectType):
-    """Region GraphQL Type"""
-    
-    class Meta:
-        model = Region
-        fields = (
-            'id',
-            'code',
-            'name',
-            'default_currency',
-            'tax_rate',
-            'timezone',
-            'locale',
-            'is_active',
-        )
+class RegionType(graphene.ObjectType):
+    """Region GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    code = graphene.String()
+    name = graphene.String()
+    default_currency = graphene.String()
+    tax_rate = graphene.Decimal()
+    timezone = graphene.String()
+    locale = graphene.String()
+    is_active = graphene.Boolean()
 
 
-class BranchType(DjangoObjectType):
-    """Branch GraphQL Type"""
-    
-    class Meta:
-        model = Branch
-        fields = (
-            'id',
-            'name',
-            'code',
-            'region',
-            'address_line_1',
-            'address_line_2',
-            'city',
-            'state',
-            'postal_code',
-            'country',
-            'phone',
-            'email',
-            'can_ship',
-            'can_click_collect',
-            'can_cross_border',
-            'operating_hours',
-            'is_active',
-            'created_at',
-            'updated_at',
-        )
+class BranchType(graphene.ObjectType):
+    """Branch GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    name = graphene.String()
+    code = graphene.String()
+    region = graphene.Field(RegionType)
+    address_line_1 = graphene.String()
+    address_line_2 = graphene.String()
+    city = graphene.String()
+    state = graphene.String()
+    postal_code = graphene.String()
+    country = graphene.String()
+    phone = graphene.String()
+    email = graphene.String()
+    can_ship = graphene.Boolean()
+    can_click_collect = graphene.Boolean()
+    can_cross_border = graphene.Boolean()
+    operating_hours = graphene.JSONString()
+    is_active = graphene.Boolean()
+    created_at = graphene.DateTime()
+    updated_at = graphene.DateTime()
 
 
 # ============================================================================

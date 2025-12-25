@@ -3,7 +3,6 @@ GraphQL Schema for Dashboard and Reporting Data
 Provides queries for executive and branch dashboards
 """
 import graphene
-from graphene_django import DjangoObjectType
 from django.db.models import Sum, Count, Avg, Q, F
 from datetime import datetime, timedelta
 from decimal import Decimal

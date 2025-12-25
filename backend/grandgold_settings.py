@@ -574,8 +574,6 @@ _log_msg('grandgold_settings.py:125', 'INSTALLED_APPS found, extending', {'curre
 # Now extend INSTALLED_APPS with our custom extensions
 INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
     'corsheaders',  # Add CORS headers support for frontend connections
-    # Needed for graphene_django.DjangoObjectType in our extensions (installed via requirements.txt)
-    'graphene_django',
     'saleor_extensions.regions',
     'saleor_extensions.currency',
     'saleor_extensions.branches',

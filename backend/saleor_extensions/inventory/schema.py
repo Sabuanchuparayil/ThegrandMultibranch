@@ -2,7 +2,6 @@
 GraphQL API for Branch Inventory Operations and Stock Management
 """
 import graphene
-from graphene_django import DjangoObjectType
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 
@@ -47,87 +46,98 @@ except ImportError:
 # Object Types
 # ============================================================================
 
-class BranchInventoryType(DjangoObjectType):
-    """Branch Inventory GraphQL Type"""
+class ProductType(graphene.ObjectType):
+    """Minimal Product type for admin inventory views."""
+
+    id = graphene.ID()
+    name = graphene.String()
+
+
+class ProductVariantType(graphene.ObjectType):
+    """Minimal ProductVariant type for admin inventory views."""
+
+    id = graphene.ID()
+    name = graphene.String()
+    sku = graphene.String()
+    product = graphene.Field(ProductType)
+
+
+class BranchType(graphene.ObjectType):
+    """Minimal Branch type for inventory views."""
+
+    id = graphene.ID()
+    name = graphene.String()
+    code = graphene.String()
+
+
+class BranchInventoryType(graphene.ObjectType):
+    """Branch Inventory GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    product_variant = graphene.Field(ProductVariantType)
+    branch = graphene.Field(BranchType)
+    quantity = graphene.Int()
+    reserved_quantity = graphene.Int()
+    low_stock_threshold = graphene.Int()
+    last_updated = graphene.DateTime()
+    created_at = graphene.DateTime()
     available_quantity = graphene.Int()
     is_low_stock = graphene.Boolean()
-    
-    class Meta:
-        model = BranchInventory
-        fields = (
-            'id',
-            'product_variant',
-            'branch',
-            'quantity',
-            'reserved_quantity',
-            'low_stock_threshold',
-            'last_updated',
-            'created_at',
-        )
-    
+
     def resolve_available_quantity(self, info):
-        return self.available_quantity
-    
+        return getattr(self, "available_quantity", None)
+
     def resolve_is_low_stock(self, info):
-        return self.is_low_stock
+        return getattr(self, "is_low_stock", None)
 
 
-class StockMovementType(DjangoObjectType):
-    """Stock Movement GraphQL Type"""
-    
-    class Meta:
-        model = StockMovement
-        fields = (
-            'id',
-            'branch',
-            'product_variant',
-            'movement_type',
-            'quantity',
-            'reference_number',
-            'notes',
-            'created_by',
-            'created_at',
-        )
+class StockMovementType(graphene.ObjectType):
+    """Stock Movement GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    branch = graphene.Field(BranchType)
+    product_variant = graphene.Field(ProductVariantType)
+    movement_type = graphene.String()
+    quantity = graphene.Int()
+    reference_number = graphene.String()
+    notes = graphene.String()
+    created_by = graphene.String()
+    created_at = graphene.DateTime()
 
 
-class StockTransferType(DjangoObjectType):
-    """Stock Transfer GraphQL Type"""
+class StockTransferType(graphene.ObjectType):
+    """Stock Transfer GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    transfer_number = graphene.String()
+    from_branch = graphene.Field(BranchType)
+    to_branch = graphene.Field(BranchType)
+    quantity = graphene.Int()
+    status = graphene.String()
+    requested_by = graphene.String()
+    notes = graphene.String()
+    created_at = graphene.DateTime()
+    updated_at = graphene.DateTime()
     status_display = graphene.String()
-    
-    class Meta:
-        model = StockTransfer
-        fields = (
-            'id',
-            'transfer_number',
-            'from_branch',
-            'to_branch',
-            'quantity',
-            'status',
-            'requested_by',
-            'notes',
-            'created_at',
-            'updated_at',
-        )
-    
+
     def resolve_status_display(self, info):
-        return self.get_status_display()
+        try:
+            return self.get_status_display()
+        except Exception:
+            return getattr(self, "status", None)
 
 
-class LowStockAlertType(DjangoObjectType):
-    """Low Stock Alert GraphQL Type"""
-    
-    class Meta:
-        model = LowStockAlert
-        fields = (
-            'id',
-            'branch_inventory',
-            'current_quantity',
-            'threshold_quantity',
-            'status',
-            'notified_at',
-            'resolved_at',
-            'created_at',
-        )
+class LowStockAlertType(graphene.ObjectType):
+    """Low Stock Alert GraphQL Type (no graphene-django dependency)."""
+
+    id = graphene.ID()
+    branch_inventory = graphene.Field(BranchInventoryType)
+    current_quantity = graphene.Int()
+    threshold_quantity = graphene.Int()
+    status = graphene.String()
+    notified_at = graphene.DateTime()
+    resolved_at = graphene.DateTime()
+    created_at = graphene.DateTime()
 
 
 # ============================================================================
@@ -157,10 +167,7 @@ class StockTransferInput(graphene.InputObjectType):
 class BulkStockAdjustmentInput(graphene.InputObjectType):
     """Input for bulk stock adjustments"""
     branch_id = graphene.ID(required=True)
-    adjustments = graphene.List(
-        graphene.NonNull(graphene.InputObjectType),
-        required=True
-    )
+    adjustments = graphene.List(graphene.NonNull(lambda: StockAdjustmentItemInput), required=True)
     reference_number = graphene.String()
     notes = graphene.String()
 

@@ -16,14 +16,10 @@ boto3>=1.28.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 # GraphQL
-# Runtime evidence (Railway ping) showed: ModuleNotFoundError: No module named 'graphene_django'
-# Our extensions use graphene_django.DjangoObjectType and our URLConf may fall back to graphene_django.views.GraphQLView.
-# Saleor install does not guarantee graphene-django is present, so we must include it here.
-# Runtime evidence (Railway boot) showed Saleor imports:
-#   from graphql.execution import executor
-#   from ..error import GraphQLError, GraphQLLocatedError
-# This is the graphql-core 2.x API. Therefore pin the GraphQL stack to 2.x-compatible versions.
-graphene-django==2.15.0
+# IMPORTANT: Do NOT install graphene-django.
+# Runtime evidence: graphene-django 2.x crashes on Django 5 (ImportError: force_text).
+# We removed all graphene_django usage from our extensions and rely on Saleor's GraphQL stack.
+# We keep these pins aligned with Saleor 3.23.x (graphene 2 / graphql-core 2).
 graphene==2.1.9
 graphql-core==2.3.2
 graphql-relay==2.0.1
