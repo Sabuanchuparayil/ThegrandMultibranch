@@ -136,23 +136,32 @@ class BranchCreateInput(graphene.InputObjectType):
 
 
 class BranchUpdateInput(graphene.InputObjectType):
-    """Input for updating a branch"""
+    """Input for updating a branch (uses camelCase for GraphQL convention)"""
     name = graphene.String()
     code = graphene.String()
-    region_id = graphene.ID()
-    address_line_1 = graphene.String()
-    address_line_2 = graphene.String()
+    region_id = graphene.ID()  # Keep for backward compatibility
+    regionId = graphene.ID()  # Primary camelCase field
+    address_line_1 = graphene.String()  # Keep for backward compatibility
+    addressLine1 = graphene.String()  # Primary camelCase field
+    address_line_2 = graphene.String()  # Keep for backward compatibility
+    addressLine2 = graphene.String()  # Primary camelCase field
     city = graphene.String()
     state = graphene.String()
-    postal_code = graphene.String()
+    postal_code = graphene.String()  # Keep for backward compatibility
+    postalCode = graphene.String()  # Primary camelCase field
     country = graphene.String()
     phone = graphene.String()
     email = graphene.String()
-    can_ship = graphene.Boolean()
-    can_click_collect = graphene.Boolean()
-    can_cross_border = graphene.Boolean()
-    is_active = graphene.Boolean()
-    operating_hours = graphene.JSONString()
+    can_ship = graphene.Boolean()  # Keep for backward compatibility
+    canShip = graphene.Boolean()  # Primary camelCase field
+    can_click_collect = graphene.Boolean()  # Keep for backward compatibility
+    canClickCollect = graphene.Boolean()  # Primary camelCase field
+    can_cross_border = graphene.Boolean()  # Keep for backward compatibility
+    canCrossBorder = graphene.Boolean()  # Primary camelCase field
+    is_active = graphene.Boolean()  # Keep for backward compatibility
+    isActive = graphene.Boolean()  # Primary camelCase field
+    operating_hours = graphene.JSONString()  # Keep for backward compatibility
+    operatingHours = graphene.JSONString()  # Primary camelCase field
 
 
 # ============================================================================
