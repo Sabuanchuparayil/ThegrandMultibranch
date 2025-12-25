@@ -200,6 +200,10 @@ class BranchQueries(graphene.ObjectType):
 
 class BranchCreate(BaseMutation):
     """Create branch mutation"""
+    
+    class Meta:
+        description = "Create a new branch"
+    
     branch = graphene.Field(BranchType)
     errors = graphene.List(Error)
     
@@ -249,6 +253,10 @@ class BranchCreate(BaseMutation):
 
 class BranchUpdate(BaseMutation):
     """Update branch mutation"""
+    
+    class Meta:
+        description = "Update an existing branch"
+    
     branch = graphene.Field(BranchType)
     errors = graphene.List(Error)
     
@@ -315,6 +323,10 @@ class BranchUpdate(BaseMutation):
 
 class BranchDelete(BaseMutation):
     """Delete branch mutation"""
+    
+    class Meta:
+        description = "Delete a branch"
+    
     success = graphene.Boolean()
     errors = graphene.List(Error)
     
