@@ -9,8 +9,12 @@ echo "Generating Django Migrations Locally"
 echo "=========================================="
 echo ""
 
-# Check if virtual environment exists
-if [ ! -d ".venv" ]; then
+# Check if virtual environment exists (check both .venv and venv)
+if [ -d ".venv" ]; then
+    VENV_PATH=".venv"
+elif [ -d "venv" ]; then
+    VENV_PATH="venv"
+else
     echo "❌ Virtual environment not found. Please create one first:"
     echo "   python3 -m venv .venv"
     echo "   source .venv/bin/activate"
@@ -19,8 +23,8 @@ if [ ! -d ".venv" ]; then
 fi
 
 # Activate virtual environment
-echo "📦 Activating virtual environment..."
-source .venv/bin/activate
+echo "📦 Activating virtual environment ($VENV_PATH)..."
+source "$VENV_PATH/bin/activate"
 
 # Check if Django is installed
 if ! python -c "import django" 2>/dev/null; then
