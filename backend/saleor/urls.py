@@ -8,14 +8,20 @@ from django.conf import settings
 from django.urls import path, include
 
 # Import our extended GraphQL schema with comprehensive error handling
+# Note: Python will import from our local saleor/ directory if it's in sys.path before site-packages
 extended_schema = None
 _EXTENDED_SCHEMA_AVAILABLE = False
+
 try:
+    # Import from our local saleor.graphql.schema
+    # This should work because our backend directory is in Python path
     from saleor.graphql.schema import schema as extended_schema
     _EXTENDED_SCHEMA_AVAILABLE = True
     print("✅ Successfully imported extended GraphQL schema")
+    print(f"   Schema module file: {extended_schema.__class__.__module__ if hasattr(extended_schema, '__class__') else 'unknown'}")
 except Exception as e:
     print(f"❌ ERROR: Failed to import extended GraphQL schema: {e}")
+    print(f"   Error type: {type(e).__name__}")
     print(f"   Traceback: {traceback.format_exc()}")
     _EXTENDED_SCHEMA_AVAILABLE = False
     extended_schema = None
