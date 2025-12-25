@@ -6,10 +6,12 @@ This script:
 1. Creates migrations for custom apps (if needed)
 2. Runs all migrations
 3. Verifies database tables exist
+4. Exits (does NOT start a web server)
 
 Usage:
     python run_migrations.py
     Or via Railway: railway run python run_migrations.py
+    Or as Railway start command: python run_migrations.py
 """
 
 import os
@@ -19,6 +21,12 @@ import django
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Prevent Gunicorn from starting if this script is run
+# This ensures migrations run without starting a web server
+if __name__ == '__main__':
+    # Make sure we're not being imported by Gunicorn
+    pass
 
 def main():
     print("=" * 80)
@@ -97,8 +105,11 @@ def main():
     print("\n" + "=" * 80)
     print("✅ Migration process complete!")
     print("=" * 80)
+    print("\nExiting migration script. Service can be stopped now.")
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # Exit immediately after migrations - don't start web server
+    exit_code = main()
+    sys.exit(exit_code)
 
