@@ -84,11 +84,12 @@ export const apolloClient = new ApolloClient({
   defaultOptions: {
     watchQuery: {
       errorPolicy: 'all',
-      fetchPolicy: 'cache-and-network', // Use cache when available, but always try network
+      fetchPolicy: 'cache-first', // Use cache when available, then fetch from network if not in cache
+      nextFetchPolicy: 'cache-first', // Use cache-first for subsequent requests
     },
     query: {
       errorPolicy: 'all',
-      fetchPolicy: 'cache-and-network',
+      fetchPolicy: 'cache-first', // Use cache when available, then fetch from network if not in cache
     },
   },
   // Disable error logging in production to reduce noise
