@@ -17,7 +17,14 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 # Ensure our settings are used
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "grandgold_settings")
+# IMPORTANT: setdefault() will NOT override Railway-provided env vars.
+# If Railway has DJANGO_SETTINGS_MODULE set (often to Saleor defaults), our URLConf/schema
+# overrides will never be used. Force it here so runtime behavior is deterministic.
+# #region agent log
+_prev_settings = os.environ.get("DJANGO_SETTINGS_MODULE")
+os.environ["DJANGO_SETTINGS_MODULE"] = "grandgold_settings"
+print(f"🔍 [BOOT] grandgold_wsgi: DJANGO_SETTINGS_MODULE was {_prev_settings!r}, now {os.environ['DJANGO_SETTINGS_MODULE']!r}")
+# #endregion
 
 # Create application
 from django.core.wsgi import get_wsgi_application  # noqa: E402

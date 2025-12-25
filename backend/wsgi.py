@@ -118,7 +118,13 @@ _log_msg('wsgi.py:35', 'WSGI startup - checking Django version', {
 # #endregion
 
 # Set Django settings module to use our custom settings that extend Saleor
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
+# IMPORTANT: setdefault() will NOT override Railway-provided env vars.
+# Force it so the app reliably uses our URLConf/schema override.
+# #region agent log
+_prev_settings = os.environ.get('DJANGO_SETTINGS_MODULE')
+os.environ['DJANGO_SETTINGS_MODULE'] = 'grandgold_settings'
+print(f"🔍 [BOOT] backend/wsgi.py: DJANGO_SETTINGS_MODULE was {_prev_settings!r}, now {os.environ['DJANGO_SETTINGS_MODULE']!r}")
+# #endregion
 
 # #region agent log
 try:
