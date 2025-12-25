@@ -14,11 +14,38 @@ _EXTENDED_SCHEMA_AVAILABLE = False
 
 try:
     # Import from our local saleor.graphql.schema
+    # First, verify we're importing from the right location
+    import os
+    import sys
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    local_schema_path = os.path.join(backend_dir, 'saleor', 'graphql', 'schema.py')
+    
+    # Ensure backend directory is in path (should already be from wsgi.py)
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    
+    print(f"🔍 Attempting to import schema from: {local_schema_path}")
+    print(f"🔍 File exists: {os.path.exists(local_schema_path)}")
+    print(f"🔍 Backend dir in sys.path: {backend_dir in sys.path}")
+    
+    # Import from our local saleor.graphql.schema
     # This should work because our backend directory is in Python path
     from saleor.graphql.schema import schema as extended_schema
     _EXTENDED_SCHEMA_AVAILABLE = True
     print("✅ Successfully imported extended GraphQL schema")
-    print(f"   Schema module file: {extended_schema.__class__.__module__ if hasattr(extended_schema, '__class__') else 'unknown'}")
+    print(f"   Schema module: {extended_schema.__module__ if hasattr(extended_schema, '__module__') else 'unknown'}")
+    print(f"   Schema type: {type(extended_schema)}")
+    
+    # Verify it's actually our schema by checking if it has branches
+    if hasattr(extended_schema, 'query_type'):
+        try:
+            query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
+            if 'branches' in query_fields:
+                print("✅ Verified: 'branches' query is present in imported schema")
+            else:
+                print(f"⚠️  WARNING: 'branches' query NOT found. Available fields: {query_fields[:10]}")
+        except:
+            pass
 except Exception as e:
     print(f"❌ ERROR: Failed to import extended GraphQL schema: {e}")
     print(f"   Error type: {type(e).__name__}")
