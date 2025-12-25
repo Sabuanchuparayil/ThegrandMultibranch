@@ -7,15 +7,16 @@ from django.core.exceptions import ValidationError
 from saleor_extensions.branches.models import Branch
 from saleor_extensions.regions.models import Region
 
-# Try to import BaseMutation and DateTime from Saleor, fallback to graphene
+# Try to import BaseMutation, DateTime, and JSON from Saleor, fallback to graphene
 try:
     from saleor.graphql.core.mutations import BaseMutation
     from saleor.graphql.core.types import Error
-    from saleor.graphql.core.scalars import DateTime
+    from saleor.graphql.core.scalars import DateTime, JSON
     _SALEOR_AVAILABLE = True
 except ImportError:
-    # Fallback to graphene.DateTime if Saleor's DateTime is not available
+    # Fallback to graphene types if Saleor's types are not available
     DateTime = graphene.DateTime
+    JSON = graphene.JSONString
     # Fallback if Saleor's BaseMutation is not available
     # Define Error class first so it can be used in BaseMutation
     # Use a graphene ObjectType with resolvers and direct attribute access
@@ -99,7 +100,7 @@ class BranchType(graphene.ObjectType):
     can_ship = graphene.Boolean()
     can_click_collect = graphene.Boolean()
     can_cross_border = graphene.Boolean()
-    operating_hours = graphene.JSONString()
+    operating_hours = JSON()
     is_active = graphene.Boolean()
     created_at = DateTime()
     updated_at = DateTime()
@@ -134,7 +135,7 @@ class BranchCreateInput(graphene.InputObjectType):
     canCrossBorder = graphene.Boolean(default_value=False)  # Primary camelCase field
     is_active = graphene.Boolean()  # Keep for backward compatibility
     isActive = graphene.Boolean(default_value=True)  # Primary camelCase field
-    operating_hours = graphene.JSONString()  # Keep for backward compatibility
+    operating_hours = JSON()  # Keep for backward compatibility
     operatingHours = graphene.JSONString()  # Primary camelCase field
 
 
@@ -163,7 +164,7 @@ class BranchUpdateInput(graphene.InputObjectType):
     canCrossBorder = graphene.Boolean()  # Primary camelCase field
     is_active = graphene.Boolean()  # Keep for backward compatibility
     isActive = graphene.Boolean()  # Primary camelCase field
-    operating_hours = graphene.JSONString()  # Keep for backward compatibility
+    operating_hours = JSON()  # Keep for backward compatibility
     operatingHours = graphene.JSONString()  # Primary camelCase field
 
 
