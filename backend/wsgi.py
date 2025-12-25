@@ -8,6 +8,35 @@ import os
 import sys
 import json
 import time
+import subprocess
+
+# CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
+# This must happen before Django or Saleor imports, as Saleor imports magic during module load
+if 'LD_LIBRARY_PATH' not in os.environ or 'libmagic' not in os.environ.get('LD_LIBRARY_PATH', ''):
+    # Find libmagic.so in Nix store
+    try:
+        result = subprocess.run(
+            ['find', '/nix/store', '-name', 'libmagic.so*', '-type', 'f'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Get the directory containing libmagic.so
+            libmagic_path = result.stdout.strip().split('\n')[0]
+            libmagic_dir = os.path.dirname(libmagic_path)
+            # Add to LD_LIBRARY_PATH
+            current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+            if libmagic_dir not in current_ld_path:
+                os.environ['LD_LIBRARY_PATH'] = f"{libmagic_dir}:{current_ld_path}" if current_ld_path else libmagic_dir
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+        # If find command fails or times out, try common Nix paths
+        common_paths = [
+            '/nix/store/*/lib/libmagic.so*',
+            '/nix/store/*-file-*/lib/libmagic.so*',
+        ]
+        # Fallback: try to set a reasonable default if we can't find it
+        pass
 
 # #region agent log
 def _log_msg(loc, msg, data, hyp):

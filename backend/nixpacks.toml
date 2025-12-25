@@ -23,4 +23,4 @@ cmds = [
 ]
 
 [start]
-cmd = "bash -c 'LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && source .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120'"
+cmd = "bash -c 'LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && export PYTHONPATH=$PYTHONPATH && source .venv/bin/activate && gunicorn wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120'"
