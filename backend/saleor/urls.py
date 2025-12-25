@@ -13,27 +13,51 @@ extended_schema = None
 _EXTENDED_SCHEMA_AVAILABLE = False
 
 try:
-    # Import from our local saleor.graphql.schema
-    # First, verify we're importing from the right location
+    # CRITICAL: Use importlib to explicitly load our LOCAL schema file
+    # This ensures we get our extended schema, not Saleor's default
     import os
     import sys
+    import importlib.util
+    
     backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     local_schema_path = os.path.join(backend_dir, 'saleor', 'graphql', 'schema.py')
     
-    # Ensure backend directory is in path (should already be from wsgi.py)
+    print(f"🔍 CRITICAL: Loading schema from local file: {local_schema_path}")
+    print(f"🔍 File exists: {os.path.exists(local_schema_path)}")
+    
+    if not os.path.exists(local_schema_path):
+        raise FileNotFoundError(f"Local schema file not found: {local_schema_path}")
+    
+    # Remove any existing saleor.graphql.schema from sys.modules to force reload
+    modules_to_remove = [k for k in sys.modules.keys() if k.startswith('saleor.graphql.schema')]
+    for mod in modules_to_remove:
+        print(f"🔍 Removing from cache: {mod}")
+        del sys.modules[mod]
+    
+    # Ensure backend directory is in path
     if backend_dir not in sys.path:
         sys.path.insert(0, backend_dir)
+        print(f"🔍 Added backend_dir to sys.path: {backend_dir}")
     
-    print(f"🔍 Attempting to import schema from: {local_schema_path}")
-    print(f"🔍 File exists: {os.path.exists(local_schema_path)}")
-    print(f"🔍 Backend dir in sys.path: {backend_dir in sys.path}")
+    # Use importlib to explicitly load our local schema file
+    spec = importlib.util.spec_from_file_location("saleor.graphql.schema", local_schema_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not create spec from file: {local_schema_path}")
     
-    # Import from our local saleor.graphql.schema
-    # This should work because our backend directory is in Python path
-    from saleor.graphql.schema import schema as extended_schema
+    schema_module = importlib.util.module_from_spec(spec)
+    # Add to sys.modules with the correct name so imports work
+    sys.modules['saleor.graphql.schema'] = schema_module
+    spec.loader.exec_module(schema_module)
+    
+    # Get the schema from the module
+    extended_schema = getattr(schema_module, 'schema', None)
+    
+    if extended_schema is None:
+        raise AttributeError("'schema' attribute not found in loaded module")
+    
     _EXTENDED_SCHEMA_AVAILABLE = True
-    print("✅ Successfully imported extended GraphQL schema")
-    print(f"   Schema module: {extended_schema.__module__ if hasattr(extended_schema, '__module__') else 'unknown'}")
+    print("✅ Successfully loaded extended GraphQL schema from LOCAL file")
+    print(f"   Schema module: {schema_module.__file__}")
     print(f"   Schema type: {type(extended_schema)}")
     
     # Verify it's actually our schema by checking if it has branches
@@ -41,13 +65,17 @@ try:
         try:
             query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
             if 'branches' in query_fields:
-                print("✅ Verified: 'branches' query is present in imported schema")
+                print(f"✅ VERIFIED: 'branches' query is present in schema (total fields: {len(query_fields)})")
             else:
-                print(f"⚠️  WARNING: 'branches' query NOT found. Available fields: {query_fields[:10]}")
-        except:
-            pass
+                print(f"❌ CRITICAL: 'branches' query NOT found. Available fields: {query_fields[:20]}")
+                print(f"   This means the wrong schema is being loaded!")
+        except Exception as verify_error:
+            print(f"⚠️  Could not verify schema fields: {verify_error}")
+    else:
+        print("❌ CRITICAL: Schema has no query_type attribute")
+        
 except Exception as e:
-    print(f"❌ ERROR: Failed to import extended GraphQL schema: {e}")
+    print(f"❌ CRITICAL ERROR: Failed to load extended GraphQL schema: {e}")
     print(f"   Error type: {type(e).__name__}")
     print(f"   Traceback: {traceback.format_exc()}")
     _EXTENDED_SCHEMA_AVAILABLE = False
@@ -66,28 +94,61 @@ except ImportError:
         print("⚠️  Warning: Could not import GraphQLView - GraphQL endpoint may not work")
 
 # Import Saleor URLs with error handling
+# CRITICAL: We must filter out Saleor's /graphql/ endpoint to use our own
 saleor_urlpatterns = []
 try:
-    from saleor.urls import urlpatterns as saleor_urlpatterns
-    # Filter out Saleor's /graphql/ path if it exists (we'll use our own)
-    # Use a safer filtering approach
+    from saleor.urls import urlpatterns as saleor_urlpatterns_raw
+    print(f"🔍 Found {len(saleor_urlpatterns_raw)} URL patterns from Saleor")
+    
+    # Filter out Saleor's /graphql/ path - use multiple methods to be sure
     filtered_patterns = []
-    for url_pattern in saleor_urlpatterns:
-        # Check if this is a graphql path by examining the pattern
+    graphql_patterns_found = []
+    
+    for url_pattern in saleor_urlpatterns_raw:
         is_graphql = False
+        
+        # Method 1: Check pattern string
         try:
             if hasattr(url_pattern, 'pattern'):
                 pattern_str = str(url_pattern.pattern)
                 if 'graphql' in pattern_str.lower():
                     is_graphql = True
+                    graphql_patterns_found.append(pattern_str)
         except:
             pass
+        
+        # Method 2: Check URL name
+        try:
+            if hasattr(url_pattern, 'name') and url_pattern.name:
+                if 'graphql' in str(url_pattern.name).lower():
+                    is_graphql = True
+        except:
+            pass
+        
+        # Method 3: Check callback/view
+        try:
+            if hasattr(url_pattern, 'callback'):
+                callback_str = str(url_pattern.callback)
+                if 'graphql' in callback_str.lower():
+                    is_graphql = True
+        except:
+            pass
+        
         if not is_graphql:
             filtered_patterns.append(url_pattern)
+        else:
+            print(f"🔍 Filtered out GraphQL pattern: {pattern_str if 'pattern_str' in locals() else 'unknown'}")
+    
     saleor_urlpatterns = filtered_patterns
-    print(f"✅ Loaded {len(saleor_urlpatterns)} URL patterns from Saleor (graphql filtered out)")
+    print(f"✅ Loaded {len(saleor_urlpatterns)} URL patterns from Saleor")
+    if graphql_patterns_found:
+        print(f"   Removed {len(graphql_patterns_found)} GraphQL pattern(s) from Saleor URLs")
+    else:
+        print(f"   No GraphQL patterns found in Saleor URLs (this is good)")
+        
 except Exception as e:
     print(f"⚠️  Warning: Could not import Saleor URLs: {e}")
+    print(f"   Traceback: {traceback.format_exc()}")
     saleor_urlpatterns = []
 
 # Custom URL patterns
