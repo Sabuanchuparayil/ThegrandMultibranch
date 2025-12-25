@@ -94,44 +94,21 @@ if os.environ.get('DATABASE_URL'):
                         python_cmd = sys.executable
                     
                     # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
-                    # Use a shell command to set LD_LIBRARY_PATH and run migrate
-                    # Increase timeout to 120 seconds for migrations
+                    # Use smart_migrate.py which handles problematic migrations gracefully
                     shell_cmd = (
                         f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
                         f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
                         f"cd {backend_dir} && "
-                        f"{python_cmd} manage.py migrate --noinput 2>&1"
+                        f"{python_cmd} smart_migrate.py 2>&1"
                     )
                     
                     result = subprocess.run(
                         ['/bin/bash', '-c', shell_cmd],
                         capture_output=True,
                         text=True,
-                        timeout=120,  # Increased timeout for migrations
+                        timeout=180,  # Increased timeout for smart migration
                         env=subprocess_env
                     )
-                    
-                    # If migration failed with duplicate column error, try to fix it
-                    if result.returncode != 0 and 'DuplicateColumn' in result.stderr:
-                        print("⚠️  Detected duplicate column error, attempting to fix...")
-                        fix_cmd = (
-                            f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
-                            f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
-                            f"cd {backend_dir} && "
-                            f"{python_cmd} fix_duplicate_column_migration.py 2>&1"
-                        )
-                        fix_result = subprocess.run(
-                            ['/bin/bash', '-c', fix_cmd],
-                            capture_output=True,
-                            text=True,
-                            timeout=60,
-                            env=subprocess_env
-                        )
-                        if fix_result.returncode == 0:
-                            print("✅ Fixed duplicate column issue, migrations should work now")
-                            result = fix_result  # Use the fix result
-                        else:
-                            print(f"⚠️  Could not auto-fix: {fix_result.stderr[:500]}")
                     if result.returncode == 0:
                         print("✅ Migrations checked/run on startup (via subprocess)")
                     else:
