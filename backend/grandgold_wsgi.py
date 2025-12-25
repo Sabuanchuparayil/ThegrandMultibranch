@@ -100,33 +100,38 @@ if os.environ.get('DATABASE_URL'):
                         f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
                         f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
                         f"cd {backend_dir} && "
-                        f"{python_cmd} manage.py migrate --noinput 2>&1 || "
-                        f"(echo '⚠️  Migration failed, checking for duplicate column issue...' && "
-                        f"{python_cmd} -c \""
-                        f"import os, sys, django; "
-                        f"os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings'); "
-                        f"sys.path.insert(0, '{backend_dir}'); "
-                        f"django.setup(); "
-                        f"from django.db import connection; "
-                        f"from django.core.management import call_command; "
-                        f"cursor = connection.cursor(); "
-                        f"cursor.execute(\\\"SELECT column_name FROM information_schema.columns WHERE table_name='site_sitesettings' AND column_name='display_gross_prices'\\\"); "
-                        f"if cursor.fetchone(): "
-                        f"  call_command('migrate', 'site', '0014', '--fake', verbosity=0); "
-                        f"  print('✅ Fixed duplicate column issue'); "
-                        f"  call_command('migrate', verbosity=0, interactive=False); "
-                        f"else: "
-                        f"  sys.exit(1)"
-                        f"\" 2>&1 || echo '⚠️  Could not auto-fix migration issue')"
+                        f"{python_cmd} manage.py migrate --noinput 2>&1"
                     )
                     
                     result = subprocess.run(
                         ['/bin/bash', '-c', shell_cmd],
                         capture_output=True,
                         text=True,
-                        timeout=120,  # Increased timeout
+                        timeout=120,  # Increased timeout for migrations
                         env=subprocess_env
                     )
+                    
+                    # If migration failed with duplicate column error, try to fix it
+                    if result.returncode != 0 and 'DuplicateColumn' in result.stderr:
+                        print("⚠️  Detected duplicate column error, attempting to fix...")
+                        fix_cmd = (
+                            f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                            f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                            f"cd {backend_dir} && "
+                            f"{python_cmd} fix_duplicate_column_migration.py 2>&1"
+                        )
+                        fix_result = subprocess.run(
+                            ['/bin/bash', '-c', fix_cmd],
+                            capture_output=True,
+                            text=True,
+                            timeout=60,
+                            env=subprocess_env
+                        )
+                        if fix_result.returncode == 0:
+                            print("✅ Fixed duplicate column issue, migrations should work now")
+                            result = fix_result  # Use the fix result
+                        else:
+                            print(f"⚠️  Could not auto-fix: {fix_result.stderr[:500]}")
                     if result.returncode == 0:
                         print("✅ Migrations checked/run on startup (via subprocess)")
                     else:
