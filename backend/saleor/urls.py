@@ -256,7 +256,39 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
                 else:
                     print(f"🔍 [RUNTIME] ❌ Schema has no query_type attribute!")
                 
-                return base_view(request, *args, **kwargs)
+                # Execute the view with error handling
+                try:
+                    return base_view(request, *args, **kwargs)
+                except Exception as view_error:
+                    # Log the actual error that's causing the 500
+                    print(f"❌ [RUNTIME] CRITICAL ERROR in GraphQL view: {view_error}")
+                    print(f"❌ [RUNTIME] Error type: {type(view_error).__name__}")
+                    import traceback
+                    error_traceback = traceback.format_exc()
+                    print(f"❌ [RUNTIME] Traceback:\n{error_traceback}")
+                    
+                    # #region agent log
+                    try:
+                        with open(log_path, 'a') as f:
+                            f.write(json.dumps({
+                                'timestamp': int(time.time() * 1000),
+                                'location': 'saleor/urls.py:wrapped_view:error',
+                                'message': 'GraphQL view error',
+                                'data': {
+                                    'error': str(view_error),
+                                    'error_type': type(view_error).__name__,
+                                    'traceback': error_traceback
+                                },
+                                'sessionId': 'debug-session',
+                                'runId': 'runtime',
+                                'hypothesisId': 'C'
+                            }) + '\n')
+                    except:
+                        pass
+                    # #endregion
+                    
+                    # Re-raise to return proper 500 error
+                    raise
             
             return wrapped_view
         
