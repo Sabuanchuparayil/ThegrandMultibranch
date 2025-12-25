@@ -600,20 +600,10 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
 if 'MIDDLEWARE' not in globals():
     MIDDLEWARE = []
 
-# Add GraphQL schema logging middleware (for debugging)
-try:
-    from saleor.graphql.middleware import GraphQLSchemaLoggingMiddleware
-    if 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware' not in MIDDLEWARE:
-        # Add after SecurityMiddleware but before other middleware
-        try:
-            security_index = MIDDLEWARE.index('django.middleware.security.SecurityMiddleware')
-            MIDDLEWARE.insert(security_index + 1, 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware')
-        except ValueError:
-            # If SecurityMiddleware not found, add at the beginning
-            MIDDLEWARE.insert(0, 'saleor.graphql.middleware.GraphQLSchemaLoggingMiddleware')
-except ImportError:
-    # Middleware not available, skip
-    pass
+# GraphQL schema logging middleware removed temporarily
+# The middleware was causing AppRegistryNotReady errors because Django was importing
+# Saleor's installed middleware instead of our local one during settings load.
+# We can add logging directly in the GraphQL view instead if needed.
 
 # Add CORS middleware early (before CommonMiddleware) to handle preflight requests
 # CORS middleware must be added before CommonMiddleware to intercept OPTIONS requests
