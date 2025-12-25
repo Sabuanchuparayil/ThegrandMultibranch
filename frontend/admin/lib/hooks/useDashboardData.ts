@@ -131,14 +131,14 @@ export function useBranchDashboard(filters: BranchDashboardFilters) {
     },
     // Poll every 30 seconds
     pollInterval: 30000,
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     skip: !branchId,
   });
 
   const { data: inventoryData } = useQuery(GET_BRANCH_INVENTORY_STATUS, {
     variables: { branchId },
     pollInterval: 60000, // Poll inventory every minute
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     skip: !branchId,
   });
 
