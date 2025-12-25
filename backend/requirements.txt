@@ -14,8 +14,11 @@ whitenoise>=6.5.0
 boto3>=1.28.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-# Note: graphene, graphene-django, graphql-core, graphql-relay are installed by Saleor
-# Do not add them here to avoid version conflicts
+# GraphQL
+# Runtime evidence (Railway ping) showed: ModuleNotFoundError: No module named 'graphene_django'
+# Our extensions use graphene_django.DjangoObjectType and our URLConf may fall back to graphene_django.views.GraphQLView.
+# Saleor install does not guarantee graphene-django is present, so we must include it here.
+graphene-django>=3.2,<4
 reportlab>=4.0.0
 weasyprint>=60.0.0
 dj-database-url>=2.1.0
