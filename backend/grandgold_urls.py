@@ -107,16 +107,25 @@ def _graphql_entrypoint(request):
             return JsonResponse({"error": "Missing 'query' in request body"}, status=400)
 
         # Create proper Saleor context for GraphQL execution
-        # Saleor's resolvers expect a context with 'app' attribute
+        # Saleor's resolvers expect a context with 'app' and 'user' attributes
         try:
             from saleor.graphql.core.context import SaleorContext
+            # SaleorContext expects request and optionally app
+            # It will handle user extraction from request automatically
             context = SaleorContext(request=request, app=None)
-        except ImportError:
-            # Fallback: create a simple context object with app attribute
+        except (ImportError, Exception) as e:
+            # Fallback: create a simple context object with required attributes
             class SimpleContext:
                 def __init__(self, request):
                     self.request = request
                     self.app = None
+                    # Ensure user attribute exists (Saleor's BaseMutation expects it)
+                    if hasattr(request, 'user'):
+                        self.user = request.user
+                    else:
+                        # Use anonymous user if not authenticated
+                        from django.contrib.auth.models import AnonymousUser
+                        self.user = AnonymousUser()
             context = SimpleContext(request)
         
         result = schema.execute(
