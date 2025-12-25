@@ -82,6 +82,15 @@ try:
         
         if SaleorQuery and SaleorMutation:
             _SALEOR_AVAILABLE = True
+            print(f"✅ [SCHEMA] Imported SaleorQuery from: {SaleorQuery.__module__}")
+            print(f"✅ [SCHEMA] Imported SaleorMutation from: {SaleorMutation.__module__}")
+            # Check fields
+            if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+                fields = list(SaleorQuery._meta.fields.keys())
+                print(f"✅ [SCHEMA] SaleorQuery has {len(fields)} fields")
+                print(f"   Has products: {'products' in fields}")
+                print(f"   Has orders: {'orders' in fields}")
+                print(f"   Has users: {'users' in fields}")
             _log(
                 "grandgold_graphql/schema.py:import_saleor",
                 "Imported Saleor schema object (strategy 1)",
@@ -271,10 +280,16 @@ if len(query_bases) == 1:
 else:
     Query = type("Query", tuple(query_bases), {})
     
-# Log final Query class fields
+    # Log final Query class fields
 try:
     if hasattr(Query, '_meta') and hasattr(Query._meta, 'fields'):
         final_fields = list(Query._meta.fields.keys())
+        print(f"✅ [SCHEMA] Final Query class has {len(final_fields)} fields")
+        print(f"   Has products: {'products' in final_fields}")
+        print(f"   Has orders: {'orders' in final_fields}")
+        print(f"   Has users: {'users' in final_fields}")
+        print(f"   Has branches: {'branches' in final_fields}")
+        print(f"   Sample fields: {final_fields[:10]}")
         _log(
             "grandgold_graphql/schema.py:final_query",
             "Final Query class created",
@@ -288,7 +303,10 @@ try:
             },
             "H4",
         )
+    else:
+        print("⚠️ [SCHEMA] Final Query class has no _meta.fields")
 except Exception as e:
+    print(f"❌ [SCHEMA] Could not inspect final Query class: {e}")
     _log(
         "grandgold_graphql/schema.py:final_query",
         "Could not inspect final Query class",
