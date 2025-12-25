@@ -50,44 +50,68 @@ _log(
 
 
 # --- Import Saleor core schema (installed) ---
-# Try multiple import strategies to ensure we get Saleor's Query/Mutation
+# Try to get Saleor's actual schema object first, then extract Query/Mutation
 SaleorQuery = None
 SaleorMutation = None
 _SALEOR_AVAILABLE = False
+_SALEOR_SCHEMA_OBJ = None
 
-# Strategy 1: Import from core.schema (preferred)
+# Strategy 1: Try to get Saleor's complete schema object
 try:
-    from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
-    _SALEOR_AVAILABLE = True
-    _log(
-        "grandgold_graphql/schema.py:import_saleor",
-        "Imported Saleor core schema (strategy 1)",
-        {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
-        "H3",
-    )
-except Exception as e1:
-    # Strategy 2: Try importing Saleor's actual schema object and extract Query/Mutation
+    import sys
+    # Remove local saleor.graphql to force import from installed package
+    _local_backup = None
+    if 'saleor.graphql' in sys.modules:
+        _local_backup = sys.modules.pop('saleor.graphql')
+    
     try:
-        from saleor.graphql import schema as saleor_schema
-        if hasattr(saleor_schema, 'Query'):
-            SaleorQuery = saleor_schema.Query
-        if hasattr(saleor_schema, 'Mutation'):
-            SaleorMutation = saleor_schema.Mutation
+        from saleor.graphql import schema as saleor_schema_obj
+        _SALEOR_SCHEMA_OBJ = saleor_schema_obj
+        
+        # Extract Query and Mutation from schema object
+        if hasattr(saleor_schema_obj, 'Query'):
+            SaleorQuery = saleor_schema_obj.Query
+        elif hasattr(saleor_schema_obj, 'schema') and hasattr(saleor_schema_obj.schema, 'query_type'):
+            # If schema object has a schema attribute, get Query from there
+            SaleorQuery = saleor_schema_obj.schema.query_type._meta.type
+        
+        if hasattr(saleor_schema_obj, 'Mutation'):
+            SaleorMutation = saleor_schema_obj.Mutation
+        elif hasattr(saleor_schema_obj, 'schema') and hasattr(saleor_schema_obj.schema, 'mutation_type'):
+            SaleorMutation = saleor_schema_obj.schema.mutation_type._meta.type
+        
         if SaleorQuery and SaleorMutation:
             _SALEOR_AVAILABLE = True
             _log(
                 "grandgold_graphql/schema.py:import_saleor",
-                "Imported Saleor schema (strategy 2)",
-                {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
+                "Imported Saleor schema object (strategy 1)",
+                {
+                    "query_module": SaleorQuery.__module__ if SaleorQuery else None,
+                    "mutation_module": SaleorMutation.__module__ if SaleorMutation else None,
+                    "has_schema_obj": _SALEOR_SCHEMA_OBJ is not None,
+                },
                 "H3",
             )
         else:
-            raise ImportError("Saleor schema object missing Query or Mutation")
+            raise ImportError("Could not extract Query/Mutation from Saleor schema object")
+    finally:
+        if _local_backup:
+            sys.modules['saleor.graphql'] = _local_backup
+except Exception as e1:
+    # Strategy 2: Import Query/Mutation directly from core.schema
+    try:
+        from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
+        _SALEOR_AVAILABLE = True
+        _log(
+            "grandgold_graphql/schema.py:import_saleor",
+            "Imported Saleor core schema (strategy 2)",
+            {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
+            "H3",
+        )
     except Exception as e2:
         # Strategy 3: Try importing from graphql.schema directly
         try:
             import sys
-            # Temporarily remove our local saleor.graphql if it exists
             _local_backup = None
             if 'saleor.graphql' in sys.modules:
                 _local_backup = sys.modules.pop('saleor.graphql')
