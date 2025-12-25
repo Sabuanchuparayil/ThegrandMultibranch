@@ -379,6 +379,9 @@ class InventoryQueries(graphene.ObjectType):
 class StockAdjustment(BaseMutation):
     """Adjust stock (increase or decrease)"""
     
+    class Meta:
+        description = "Adjust stock quantity for a product variant at a branch"
+    
     class Arguments:
         input = StockAdjustmentInput(required=True)
     
@@ -443,6 +446,9 @@ class StockAdjustment(BaseMutation):
 
 class BulkStockAdjustment(BaseMutation):
     """Adjust stock for multiple items at once"""
+    
+    class Meta:
+        description = "Adjust stock quantities for multiple product variants at a branch in a single operation"
     
     class Arguments:
         branch_id = graphene.ID(required=True)
@@ -532,6 +538,9 @@ class BulkStockAdjustment(BaseMutation):
 class StockTransferCreate(BaseMutation):
     """Create a stock transfer request"""
     
+    class Meta:
+        description = "Create a stock transfer request between two branches"
+    
     class Arguments:
         input = StockTransferInput(required=True)
     
@@ -584,6 +593,9 @@ class StockTransferCreate(BaseMutation):
 
 class StockTransferProcess(BaseMutation):
     """Process/approve a stock transfer"""
+    
+    class Meta:
+        description = "Process or approve a pending stock transfer between branches"
     
     class Arguments:
         transfer_id = graphene.ID(required=True)
@@ -659,6 +671,9 @@ class StockTransferProcess(BaseMutation):
 
 class InventoryUpdateLowStockThreshold(BaseMutation):
     """Update low stock threshold for an inventory item"""
+    
+    class Meta:
+        description = "Update the low stock threshold for a specific inventory item"
     
     class Arguments:
         inventory_id = graphene.ID(required=True)
