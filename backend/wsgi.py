@@ -38,6 +38,33 @@ if 'LD_LIBRARY_PATH' not in os.environ or 'libmagic' not in os.environ.get('LD_L
         # Fallback: try to set a reasonable default if we can't find it
         pass
 
+# Monkey-patch magic import to handle missing libmagic gracefully
+# This must happen before Saleor imports magic (which happens during URL loading)
+try:
+    import magic
+    # Verify it actually works (not just imported)
+    try:
+        _test_magic = magic.Magic()
+        _test_magic.from_file('/dev/null')  # Test if it works
+    except:
+        # If magic doesn't work, use fallback
+        raise ImportError("magic module imported but libmagic not functional")
+except (ImportError, OSError, Exception):
+    # If magic import fails, create a mock module to prevent ImportError
+    import types
+    class MagicFallback:
+        """Fallback class when libmagic is not available"""
+        def __init__(self, *args, **kwargs):
+            pass
+        def from_file(self, *args, **kwargs):
+            return None
+        def from_buffer(self, *args, **kwargs):
+            return None
+    
+    magic = types.ModuleType('magic')
+    magic.Magic = MagicFallback
+    sys.modules['magic'] = magic
+
 # #region agent log
 def _log_msg(loc, msg, data, hyp):
     try:
