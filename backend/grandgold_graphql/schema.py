@@ -158,7 +158,22 @@ if not mutation_bases:
 Mutation = type("Mutation", tuple(mutation_bases), {})
 
 
-schema = graphene.Schema(query=Query, mutation=Mutation)
+try:
+    schema = graphene.Schema(query=Query, mutation=Mutation)
+    _log(
+        "grandgold_graphql/schema.py:create",
+        "Schema created successfully",
+        {"query_bases_count": len(query_bases), "mutation_bases_count": len(mutation_bases)},
+        "H5",
+    )
+except Exception as e:
+    _log(
+        "grandgold_graphql/schema.py:create",
+        "Schema creation failed",
+        {"error": str(e), "error_type": type(e).__name__, "traceback": __import__("traceback").format_exc()},
+        "H5",
+    )
+    raise
 
 
 def _verify_schema() -> None:
