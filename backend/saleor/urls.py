@@ -4,8 +4,13 @@ URL Configuration for Grand Gold & Diamonds
 This extends Saleor's URLs and adds GraphQL endpoint with custom schema
 """
 import traceback
+import os
 from django.conf import settings
 from django.urls import path, include
+
+# CRITICAL: Log which urls.py file is being loaded
+print(f"🔍 [URLS] Loading URL configuration from: {__file__}")
+print(f"🔍 [URLS] This is our LOCAL saleor/urls.py file")
 
 # Import our extended GraphQL schema with comprehensive error handling
 # Note: Python will import from our local saleor/ directory if it's in sys.path before site-packages
@@ -269,5 +274,22 @@ else:
 
 # Include Saleor URLs (Saleor's /graphql/ has been filtered out)
 urlpatterns.extend(saleor_urlpatterns)
+
+# CRITICAL: Verify our /graphql/ pattern is first
 print(f"✅ Total URL patterns configured: {len(urlpatterns)}")
+if urlpatterns:
+    first_pattern = urlpatterns[0]
+    first_pattern_str = str(first_pattern.pattern) if hasattr(first_pattern, 'pattern') else str(first_pattern)
+    print(f"🔍 First URL pattern: {first_pattern_str}")
+    if 'graphql' in first_pattern_str.lower():
+        print(f"✅ VERIFIED: Our /graphql/ pattern is FIRST in urlpatterns")
+    else:
+        print(f"❌ CRITICAL: Our /graphql/ pattern is NOT first! First pattern: {first_pattern_str}")
+        # Force our pattern to be first
+        graphql_patterns = [p for p in urlpatterns if 'graphql' in str(getattr(p, 'pattern', '')).lower()]
+        other_patterns = [p for p in urlpatterns if 'graphql' not in str(getattr(p, 'pattern', '')).lower()]
+        if graphql_patterns:
+            urlpatterns = graphql_patterns + other_patterns
+            print(f"🔧 FIXED: Reordered urlpatterns - GraphQL patterns first")
+            print(f"   New first pattern: {str(urlpatterns[0].pattern) if hasattr(urlpatterns[0], 'pattern') else str(urlpatterns[0])}")
 
