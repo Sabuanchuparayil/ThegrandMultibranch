@@ -137,9 +137,14 @@ except Exception as e1:
                 if _local_backup:
                     sys.modules['saleor.graphql'] = _local_backup
         except Exception as e3:
+            print(f"⚠️ [SCHEMA] Strategy 3 failed: {e3}")
             _SALEOR_AVAILABLE = False
             SaleorQuery = None
             SaleorMutation = None
+            print(f"❌ [SCHEMA] All import strategies failed!")
+            print(f"   Error 1: {e1}")
+            print(f"   Error 2: {e2}")
+            print(f"   Error 3: {e3}")
             _log(
                 "grandgold_graphql/schema.py:import_saleor",
                 "Failed to import Saleor core schema (all strategies failed)",
@@ -232,11 +237,22 @@ def _unique_bases(bases):
 
 # Build query bases - ensure SaleorQuery is first if available
 query_bases = []
+print(f"🔍 [SCHEMA] Building query bases...")
+print(f"   _SALEOR_AVAILABLE: {_SALEOR_AVAILABLE}")
+print(f"   SaleorQuery is None: {SaleorQuery is None}")
+print(f"   SaleorQuery type: {type(SaleorQuery)}")
+
 if _SALEOR_AVAILABLE and SaleorQuery is not None:
     query_bases.append(SaleorQuery)
+    print(f"✅ [SCHEMA] Added SaleorQuery to query_bases")
     # Log SaleorQuery fields for debugging
     if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
         saleor_fields = list(SaleorQuery._meta.fields.keys())
+        print(f"✅ [SCHEMA] SaleorQuery has {len(saleor_fields)} fields")
+        print(f"   Has products: {'products' in saleor_fields}")
+        print(f"   Has orders: {'orders' in saleor_fields}")
+        print(f"   Has users: {'users' in saleor_fields}")
+        print(f"   Sample Saleor fields: {saleor_fields[:10]}")
         _log(
             "grandgold_graphql/schema.py:compose",
             "SaleorQuery included in schema composition",
@@ -249,6 +265,7 @@ if _SALEOR_AVAILABLE and SaleorQuery is not None:
             "H4",
         )
     else:
+        print(f"⚠️ [SCHEMA] SaleorQuery has no _meta.fields")
         _log(
             "grandgold_graphql/schema.py:compose",
             "SaleorQuery included but has no _meta.fields",
@@ -256,6 +273,9 @@ if _SALEOR_AVAILABLE and SaleorQuery is not None:
             "H4",
         )
 else:
+    print(f"❌ [SCHEMA] SaleorQuery NOT included")
+    print(f"   _SALEOR_AVAILABLE: {_SALEOR_AVAILABLE}")
+    print(f"   SaleorQuery is None: {SaleorQuery is None}")
     _log(
         "grandgold_graphql/schema.py:compose",
         "SaleorQuery NOT included in schema composition",
