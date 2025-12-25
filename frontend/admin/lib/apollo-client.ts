@@ -5,13 +5,16 @@ import { onError } from '@apollo/client/link/error';
 // Get GraphQL URL from environment or use Railway backend URL
 const getGraphQLUrl = () => {
   // Priority: Environment variable > Railway backend URL > localhost
+  // IMPORTANT: Set NEXT_PUBLIC_GRAPHQL_URL in Railway environment variables
+  // to avoid needing to rebuild when backend URL changes
   if (process.env.NEXT_PUBLIC_GRAPHQL_URL) {
     return process.env.NEXT_PUBLIC_GRAPHQL_URL;
   }
   
-  // Use Railway backend URL as fallback
+  // Use Railway backend URL as fallback (updated to fb5f)
   if (typeof window !== 'undefined') {
     // In browser, use the Railway backend URL
+    // This will be used if NEXT_PUBLIC_GRAPHQL_URL is not set
     return 'https://backend-production-fb5f.up.railway.app/graphql/';
   }
   
