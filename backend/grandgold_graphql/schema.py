@@ -109,8 +109,29 @@ try:
 except Exception as e1:
     print(f"⚠️ [SCHEMA] Strategy 1 failed: {e1}")
     # Strategy 2: Import Query/Mutation directly from core.schema
+    # Set up libmagic path first to avoid import errors
     try:
-        from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
+        import os
+        # Try to find libmagic and set LD_LIBRARY_PATH
+        _old_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        try:
+            import subprocess
+            result = subprocess.run(
+                'find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null',
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=3
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                lib_dir = result.stdout.strip()
+                os.environ['LD_LIBRARY_PATH'] = f"{_old_ld_path}:{lib_dir}" if _old_ld_path else lib_dir
+                print(f"🔍 [SCHEMA] Set LD_LIBRARY_PATH for libmagic: {lib_dir}")
+        except Exception as lib_err:
+            pass  # Ignore libmagic path finding errors
+        
+        try:
+            from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
         _SALEOR_AVAILABLE = True
         print(f"✅ [SCHEMA] Strategy 2 succeeded - Imported from core.schema")
         print(f"   SaleorQuery module: {SaleorQuery.__module__}")
@@ -126,6 +147,13 @@ except Exception as e1:
             {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
             "H3",
         )
+        finally:
+            # Restore LD_LIBRARY_PATH
+            if _old_ld_path:
+                os.environ['LD_LIBRARY_PATH'] = _old_ld_path
+            elif 'LD_LIBRARY_PATH' in os.environ and not _old_ld_path:
+                # Only delete if we added it
+                pass  # Keep it for other imports
     except Exception as e2:
         # Strategy 3: Try importing from graphql.schema directly
         try:
