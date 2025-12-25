@@ -62,8 +62,19 @@ if os.environ.get('DATABASE_URL'):
         connection.ensure_connection()
         # Try to run migrations (will skip if already applied)
         try:
-            call_command('migrate', verbosity=0, interactive=False)
-            print("✅ Migrations checked/run on startup")
+            from io import StringIO
+            output = StringIO()
+            call_command('migrate', verbosity=2, interactive=False, stdout=output)
+            result = output.getvalue()
+            if 'No migrations to apply' in result or 'Applying' in result:
+                print("✅ Migrations checked/run on startup")
+                # Show summary of what was applied
+                if 'Applying' in result:
+                    applied = [line for line in result.split('\n') if 'Applying' in line]
+                    if applied:
+                        print(f"   Applied: {len(applied)} migration(s)")
+            else:
+                print(f"✅ Migrations checked: {result[:200]}")
         except Exception as e:
             error_msg = str(e).lower()
             # libmagic errors are not critical - migrations can still work
@@ -80,6 +91,19 @@ if os.environ.get('DATABASE_URL'):
                         python_cmd = venv_python
                     else:
                         python_cmd = sys.executable
+                    
+                    # Set up libmagic path for subprocess (same as start command)
+                    import subprocess as sp
+                    lib_path_result = sp.run(
+                        ['find', '/nix/store', '-name', 'libmagic.so*'],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if lib_path_result.returncode == 0 and lib_path_result.stdout:
+                        lib_path = os.path.dirname(lib_path_result.stdout.split('\n')[0].strip())
+                        current_ld_path = subprocess_env.get('LD_LIBRARY_PATH', '')
+                        subprocess_env['LD_LIBRARY_PATH'] = f"{current_ld_path}:{lib_path}" if current_ld_path else lib_path
                     
                     result = subprocess.run(
                         [python_cmd, 'manage.py', 'migrate', '--noinput'],
