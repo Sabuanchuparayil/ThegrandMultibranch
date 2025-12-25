@@ -125,8 +125,8 @@ class InventoryProductType(graphene.ObjectType):
     name = graphene.String()
 
 
-class InventoryInventoryProductVariantType(graphene.ObjectType):
-    """Minimal ProductVariant type for admin inventory views (renamed to avoid conflict with Saleor's InventoryProductVariantType)."""
+class InventoryProductVariantType(graphene.ObjectType):
+    """Minimal ProductVariant type for admin inventory views (renamed to avoid conflict with Saleor's ProductVariantType)."""
 
     id = graphene.ID()
     name = graphene.String()
