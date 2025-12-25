@@ -92,22 +92,17 @@ if os.environ.get('DATABASE_URL'):
                     else:
                         python_cmd = sys.executable
                     
-                    # Set up libmagic path for subprocess (same as start command)
-                    import subprocess as sp
-                    lib_path_result = sp.run(
-                        ['find', '/nix/store', '-name', 'libmagic.so*'],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
+                    # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
+                    # Use a shell command to set LD_LIBRARY_PATH and run migrate
+                    shell_cmd = (
+                        f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                        f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                        f"cd {backend_dir} && "
+                        f"{python_cmd} manage.py migrate --noinput"
                     )
-                    if lib_path_result.returncode == 0 and lib_path_result.stdout:
-                        lib_path = os.path.dirname(lib_path_result.stdout.split('\n')[0].strip())
-                        current_ld_path = subprocess_env.get('LD_LIBRARY_PATH', '')
-                        subprocess_env['LD_LIBRARY_PATH'] = f"{current_ld_path}:{lib_path}" if current_ld_path else lib_path
                     
                     result = subprocess.run(
-                        [python_cmd, 'manage.py', 'migrate', '--noinput'],
-                        cwd=backend_dir,
+                        ['/bin/bash', '-c', shell_cmd],
                         capture_output=True,
                         text=True,
                         timeout=60,
