@@ -106,11 +106,24 @@ def _graphql_entrypoint(request):
         if not query:
             return JsonResponse({"error": "Missing 'query' in request body"}, status=400)
 
+        # Create proper Saleor context for GraphQL execution
+        # Saleor's resolvers expect a context with 'app' attribute
+        try:
+            from saleor.graphql.core.context import SaleorContext
+            context = SaleorContext(request=request, app=None)
+        except ImportError:
+            # Fallback: create a simple context object with app attribute
+            class SimpleContext:
+                def __init__(self, request):
+                    self.request = request
+                    self.app = None
+            context = SimpleContext(request)
+        
         result = schema.execute(
             query,
             variable_values=variables,
             operation_name=operation_name,
-            context_value=request,
+            context_value=context,
         )
 
         errors = None
