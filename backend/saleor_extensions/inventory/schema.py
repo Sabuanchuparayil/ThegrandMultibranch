@@ -79,6 +79,11 @@ try:
     _SALEOR_AVAILABLE = True
 except ImportError:
     # Fallback if Saleor's BaseMutation is not available
+    # Define Error class first
+    class Error(graphene.ObjectType):
+        field = graphene.String()
+        message = graphene.String()
+    
     class BaseMutation(graphene.Mutation):
         """Base mutation class"""
         class Meta:
@@ -94,12 +99,10 @@ except ImportError:
                 result = cls.perform_mutation(root, info, **kwargs)
                 return result
             except ValidationError as e:
-                from saleor.graphql.core.types import Error
                 if hasattr(result, 'errors'):
                     result.errors = [Error(field=str(e), message=str(e))]
                 return result
             except Exception as e:
-                from saleor.graphql.core.types import Error
                 return cls(errors=[Error(field='__all__', message=str(e))])
 
 
