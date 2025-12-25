@@ -115,7 +115,13 @@ def _wrap_graphql_view(schema):
         # #endregion
 
         try:
-            return base_view(request, *args, **kwargs)
+            response = base_view(request, *args, **kwargs)
+            # Marker header to prove this wrapper handled the request
+            try:
+                response["X-Grandgold-Graphql"] = "1"
+            except Exception:
+                pass
+            return response
         except Exception as e:
             _log(
                 "grandgold_urls.py:graphql",

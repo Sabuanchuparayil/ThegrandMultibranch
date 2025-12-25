@@ -106,7 +106,16 @@ except Exception:
 
 
 # --- Compose schema ---
-query_bases = [SaleorQuery, InventoryQueries]
+class GrandGoldQueries(graphene.ObjectType):
+    """Always-present marker fields to prove our schema is being served."""
+
+    grandgold_schema_version = graphene.String(description="Grand Gold schema marker/version")
+
+    def resolve_grandgold_schema_version(self, info):
+        return "grandgold-extended-v1"
+
+
+query_bases = [SaleorQuery, InventoryQueries, GrandGoldQueries]
 if _BRANCHES_AVAILABLE:
     query_bases.append(BranchQueries)
 if _DASHBOARD_AVAILABLE:
