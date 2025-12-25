@@ -47,127 +47,37 @@ print(f"🔍 [BOOT] grandgold_urls.py loaded from {__file__}")
 _log("grandgold_urls.py:load", "Loading Grand Gold URLConf", {"file": __file__}, "H1")
 
 
-# Lazily import GraphQLView + schema at request time.
-# This avoids AppRegistryNotReady / import-order issues during Django startup.
-GraphQLView = None
-_graphql_view_import_error = None
 _schema_import_error = None
 
 
-def _get_graphql_view_and_schema():
-    """Return (GraphQLView, schema) or raise with detailed error."""
-    global GraphQLView, _graphql_view_import_error, _schema_import_error
+def _get_schema():
+    """Return the extended schema (lazy import)."""
+    global _schema_import_error
+    try:
+        from grandgold_graphql.schema import schema as extended_schema
 
-    # GraphQLView (prefer Saleor's, fall back to graphene-django)
-    if GraphQLView is None and _graphql_view_import_error is None:
-        try:
-            from saleor.graphql.views import GraphQLView as SaleorGraphQLView
-
-            GraphQLView = SaleorGraphQLView
-            print("🔍 [BOOT] grandgold_urls.py: using saleor.graphql.views.GraphQLView (lazy)")
-            _log("grandgold_urls.py:import", "Using saleor.graphql.views.GraphQLView", {}, "H1", run_id="runtime")
-        except Exception as e:
-            _graphql_view_import_error = {"error": str(e), "error_type": type(e).__name__}
-            try:
-                from graphene_django.views import GraphQLView as DjangoGraphQLView
-
-                GraphQLView = DjangoGraphQLView
-                _graphql_view_import_error = None
-                print("🔍 [BOOT] grandgold_urls.py: using graphene_django.views.GraphQLView fallback (lazy)")
-                _log(
-                    "grandgold_urls.py:import",
-                    "Using graphene_django.views.GraphQLView fallback",
-                    {},
-                    "H1",
-                    run_id="runtime",
-                )
-            except Exception as e2:
-                _graphql_view_import_error = {"error": str(e2), "error_type": type(e2).__name__}
-
-    # Schema
-    schema = None
-    if _schema_import_error is None:
-        try:
-            from grandgold_graphql.schema import schema as extended_schema
-
-            schema = extended_schema
-        except Exception as e:
-            _schema_import_error = {"error": str(e), "error_type": type(e).__name__}
-
-    if GraphQLView is None:
-        raise RuntimeError(f"GraphQLView import failed: {_graphql_view_import_error}")
-    if schema is None:
-        raise RuntimeError(f"Schema import failed: {_schema_import_error}")
-
-    return GraphQLView, schema
-
-
-extended_schema = None  # kept for ping visibility; resolved lazily per request
-
-
-def _wrap_graphql_view(schema, view_cls):
-    """Add minimal runtime logging around GraphQL view execution."""
-    base_view = view_cls.as_view(schema=schema)
-
-    def wrapped(request, *args, **kwargs):
-        # #region agent log
-        try:
-            _log(
-                "grandgold_urls.py:graphql",
-                "GraphQL request received",
-                {
-                    "method": request.method,
-                    "path": request.path,
-                    "schema_module": getattr(schema, "__module__", None),
-                },
-                "H1",
-                run_id="runtime",
-            )
-        except Exception:
-            pass
-        # #endregion
-
-        try:
-            response = base_view(request, *args, **kwargs)
-            # Marker header to prove this wrapper handled the request
-            try:
-                response["X-Grandgold-Graphql"] = "1"
-            except Exception:
-                pass
-            return response
-        except Exception as e:
-            _log(
-                "grandgold_urls.py:graphql",
-                "GraphQL view crashed",
-                {"error": str(e), "error_type": type(e).__name__, "traceback": traceback.format_exc()},
-                "H1",
-                run_id="runtime",
-            )
-            raise
-
-    return wrapped
+        return extended_schema
+    except Exception as e:
+        _schema_import_error = {"error": str(e), "error_type": type(e).__name__}
+        raise
 
 
 urlpatterns = []
 
 # Always-on ping route to prove this URLConf is active
 def _ping(_request):
-    # Attempt lazy resolution so ping can show current errors
-    view_ok = False
     schema_ok = False
     try:
-        _view_cls, _schema = _get_graphql_view_and_schema()
-        view_ok = _view_cls is not None
-        schema_ok = _schema is not None
+        _get_schema()
+        schema_ok = True
     except Exception:
-        pass
+        schema_ok = False
     return JsonResponse(
         {
             "ok": True,
             "urlconf": "grandgold_urls",
-            "has_graphql_view": view_ok,
+            "has_graphql_view": True,  # we serve GraphQL without GraphQLView
             "has_extended_schema": schema_ok,
-            "graphql_view_error": _graphql_view_import_error,
             "schema_error": _schema_import_error,
         }
     )
@@ -177,8 +87,51 @@ urlpatterns.append(path("__grandgold__/ping", _ping, name="grandgold_ping"))
 # Always register /graphql/ with lazy resolution.
 def _graphql_entrypoint(request):
     try:
-        view_cls, schema = _get_graphql_view_and_schema()
-        return _wrap_graphql_view(schema, view_cls)(request)
+        if request.method != "POST":
+            return JsonResponse({"error": "Method not allowed"}, status=405)
+
+        schema = _get_schema()
+
+        try:
+            import json
+
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except Exception:
+            payload = {}
+
+        query = payload.get("query")
+        variables = payload.get("variables")
+        operation_name = payload.get("operationName")
+
+        if not query:
+            return JsonResponse({"error": "Missing 'query' in request body"}, status=400)
+
+        result = schema.execute(
+            query,
+            variable_values=variables,
+            operation_name=operation_name,
+            context_value=request,
+        )
+
+        errors = None
+        if result.errors:
+            errors = []
+            for err in result.errors:
+                try:
+                    locations = [{"line": l.line, "column": l.column} for l in (getattr(err, "locations", None) or [])]
+                except Exception:
+                    locations = None
+                errors.append(
+                    {
+                        "message": str(err),
+                        "locations": locations,
+                        "path": getattr(err, "path", None),
+                    }
+                )
+
+        resp = JsonResponse({"data": result.data, "errors": errors} if errors else {"data": result.data}, status=400 if errors else 200)
+        resp["X-Grandgold-Graphql"] = "1"
+        return resp
     except Exception as e:
         _log(
             "grandgold_urls.py:graphql",
@@ -186,7 +139,6 @@ def _graphql_entrypoint(request):
             {
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "graphql_view_error": _graphql_view_import_error,
                 "schema_error": _schema_import_error,
             },
             "H1",
@@ -196,7 +148,6 @@ def _graphql_entrypoint(request):
             {
                 "error": "Extended GraphQL endpoint not available",
                 "details": {"error": str(e), "error_type": type(e).__name__},
-                "graphql_view_error": _graphql_view_import_error,
                 "schema_error": _schema_import_error,
             },
             status=500,

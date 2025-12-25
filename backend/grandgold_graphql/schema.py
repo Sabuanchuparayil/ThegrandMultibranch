@@ -62,8 +62,12 @@ try:
     )
 except Exception as e:
     _SALEOR_AVAILABLE = False
-    SaleorQuery = graphene.ObjectType
-    SaleorMutation = graphene.ObjectType
+    # IMPORTANT: Do NOT fall back to graphene.ObjectType here.
+    # If we include graphene.ObjectType alongside other graphene.ObjectType subclasses,
+    # Python can hit an MRO resolution error. We instead omit SaleorQuery/SaleorMutation
+    # entirely when Saleor import fails.
+    SaleorQuery = None
+    SaleorMutation = None
     _log(
         "grandgold_graphql/schema.py:import_saleor",
         "Failed to import Saleor core schema",
@@ -87,8 +91,8 @@ try:
     )
 except Exception as e:
     _BRANCHES_AVAILABLE = False
-    BranchQueries = graphene.ObjectType
-    BranchMutations = graphene.ObjectType
+    BranchQueries = None
+    BranchMutations = None
     _log(
         "grandgold_graphql/schema.py:import_branches",
         "Failed to import branches schema",
@@ -102,7 +106,7 @@ try:
     _DASHBOARD_AVAILABLE = True
 except Exception:
     _DASHBOARD_AVAILABLE = False
-    DashboardQueries = graphene.ObjectType
+    DashboardQueries = None
 
 
 # --- Compose schema ---
@@ -115,24 +119,43 @@ class GrandGoldQueries(graphene.ObjectType):
         return "grandgold-extended-v1"
 
 
-query_bases = [SaleorQuery, InventoryQueries, GrandGoldQueries]
+def _unique_bases(bases):
+    out = []
+    seen = set()
+    for b in bases:
+        if b is None:
+            continue
+        if b in seen:
+            continue
+        # Avoid including graphene.ObjectType directly if we already have ObjectType subclasses
+        if b is graphene.ObjectType:
+            continue
+        seen.add(b)
+        out.append(b)
+    return out
+
+
+query_bases = _unique_bases([SaleorQuery, InventoryQueries, GrandGoldQueries])
 if _BRANCHES_AVAILABLE:
-    query_bases.append(BranchQueries)
+    query_bases = _unique_bases(query_bases + [BranchQueries])
 if _DASHBOARD_AVAILABLE:
-    query_bases.append(DashboardQueries)
+    query_bases = _unique_bases(query_bases + [DashboardQueries])
+
+if not query_bases:
+    query_bases = [graphene.ObjectType]
 
 
-class Query(*query_bases):
-    pass
+Query = type("Query", tuple(query_bases), {})
 
 
-mutation_bases = [SaleorMutation, InventoryMutations]
+mutation_bases = _unique_bases([SaleorMutation, InventoryMutations])
 if _BRANCHES_AVAILABLE:
-    mutation_bases.append(BranchMutations)
+    mutation_bases = _unique_bases(mutation_bases + [BranchMutations])
 
+if not mutation_bases:
+    mutation_bases = [graphene.ObjectType]
 
-class Mutation(*mutation_bases):
-    pass
+Mutation = type("Mutation", tuple(mutation_bases), {})
 
 
 schema = graphene.Schema(query=Query, mutation=Mutation)
