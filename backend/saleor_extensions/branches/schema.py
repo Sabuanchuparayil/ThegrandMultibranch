@@ -292,45 +292,64 @@ class BranchUpdate(BaseMutation):
         try:
             branch = Branch.objects.get(id=id)
             
-            # Update fields if provided
+            # Update fields if provided, handling both camelCase and snake_case
             if hasattr(input, 'name') and input.name is not None:
                 branch.name = input.name
             if hasattr(input, 'code') and input.code is not None:
                 branch.code = input.code
-            if hasattr(input, 'region_id') and input.region_id is not None:
-                region_id = input.region_id
+            # Handle region_id/regionId
+            region_id = getattr(input, 'regionId', None) or getattr(input, 'region_id', None)
+            if region_id is not None:
                 if isinstance(region_id, str):
                     try:
                         region_id = int(region_id)
                     except ValueError:
-                        raise ValidationError(f"Invalid region_id format: '{region_id}'. Must be a valid integer.")
+                        raise ValidationError(f"Invalid regionId format: '{region_id}'. Must be a valid integer.")
                 branch.region_id = region_id
-            if hasattr(input, 'address_line_1') and input.address_line_1 is not None:
-                branch.address_line_1 = input.address_line_1
-            if hasattr(input, 'address_line_2') and input.address_line_2 is not None:
-                branch.address_line_2 = input.address_line_2
+            # Handle address fields
+            address_line_1 = getattr(input, 'addressLine1', None) or getattr(input, 'address_line_1', None)
+            if address_line_1 is not None:
+                branch.address_line_1 = address_line_1
+            address_line_2 = getattr(input, 'addressLine2', None) or getattr(input, 'address_line_2', None)
+            if address_line_2 is not None:
+                branch.address_line_2 = address_line_2
             if hasattr(input, 'city') and input.city is not None:
                 branch.city = input.city
             if hasattr(input, 'state') and input.state is not None:
                 branch.state = input.state
-            if hasattr(input, 'postal_code') and input.postal_code is not None:
-                branch.postal_code = input.postal_code
+            postal_code = getattr(input, 'postalCode', None) or getattr(input, 'postal_code', None)
+            if postal_code is not None:
+                branch.postal_code = postal_code
             if hasattr(input, 'country') and input.country is not None:
                 branch.country = input.country
             if hasattr(input, 'phone') and input.phone is not None:
                 branch.phone = input.phone
             if hasattr(input, 'email') and input.email is not None:
                 branch.email = input.email
-            if hasattr(input, 'can_ship') and input.can_ship is not None:
-                branch.can_ship = input.can_ship
-            if hasattr(input, 'can_click_collect') and input.can_click_collect is not None:
-                branch.can_click_collect = input.can_click_collect
-            if hasattr(input, 'can_cross_border') and input.can_cross_border is not None:
-                branch.can_cross_border = input.can_cross_border
-            if hasattr(input, 'is_active') and input.is_active is not None:
-                branch.is_active = input.is_active
-            if hasattr(input, 'operating_hours') and input.operating_hours is not None:
-                branch.operating_hours = input.operating_hours
+            # Handle boolean fields
+            can_ship = getattr(input, 'canShip', None)
+            if can_ship is None:
+                can_ship = getattr(input, 'can_ship', None)
+            if can_ship is not None:
+                branch.can_ship = can_ship
+            can_click_collect = getattr(input, 'canClickCollect', None)
+            if can_click_collect is None:
+                can_click_collect = getattr(input, 'can_click_collect', None)
+            if can_click_collect is not None:
+                branch.can_click_collect = can_click_collect
+            can_cross_border = getattr(input, 'canCrossBorder', None)
+            if can_cross_border is None:
+                can_cross_border = getattr(input, 'can_cross_border', None)
+            if can_cross_border is not None:
+                branch.can_cross_border = can_cross_border
+            is_active = getattr(input, 'isActive', None)
+            if is_active is None:
+                is_active = getattr(input, 'is_active', None)
+            if is_active is not None:
+                branch.is_active = is_active
+            operating_hours = getattr(input, 'operatingHours', None) or getattr(input, 'operating_hours', None)
+            if operating_hours is not None:
+                branch.operating_hours = operating_hours
             
             branch.save()
             
