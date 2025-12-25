@@ -11,6 +11,27 @@ Why this exists:
 import os
 import sys
 
+# CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
+# This must happen before Django or Saleor imports, as they may trigger libmagic usage
+try:
+    import subprocess
+    result = subprocess.run(
+        'find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null',
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=3
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        libmagic_dir = result.stdout.strip()
+        current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        if libmagic_dir and libmagic_dir not in current_ld_path:
+            os.environ['LD_LIBRARY_PATH'] = f"{current_ld_path}:{libmagic_dir}" if current_ld_path else libmagic_dir
+            print(f"🔍 [BOOT] grandgold_wsgi: Set LD_LIBRARY_PATH={libmagic_dir}")
+except Exception as e:
+    # If we can't find libmagic, that's OK - it might be set by the start command
+    pass
+
 # Ensure backend directory is on sys.path
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 if backend_dir not in sys.path:
