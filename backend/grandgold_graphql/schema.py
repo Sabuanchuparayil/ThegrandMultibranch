@@ -188,6 +188,9 @@ except Exception as e1:
                     {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
                     "H3",
                 )
+            except Exception as e2b:
+                print(f"⚠️ [SCHEMA] Strategy 2b failed: {e2b}")
+                raise e2b  # Re-raise to trigger outer except
         finally:
             # Restore LD_LIBRARY_PATH
             if _old_ld_path:

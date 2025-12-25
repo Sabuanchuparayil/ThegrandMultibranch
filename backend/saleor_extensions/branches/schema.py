@@ -107,23 +107,32 @@ class BranchType(graphene.ObjectType):
 # ============================================================================
 
 class BranchCreateInput(graphene.InputObjectType):
-    """Input for creating a branch"""
+    """Input for creating a branch (uses camelCase for GraphQL convention)"""
     name = graphene.String(required=True)
     code = graphene.String(required=True)
-    region_id = graphene.ID(required=True)
-    address_line_1 = graphene.String(required=True)
-    address_line_2 = graphene.String()
+    region_id = graphene.ID(required=True)  # Keep snake_case for backward compatibility
+    regionId = graphene.ID()  # Also accept camelCase
+    address_line_1 = graphene.String()  # Keep for backward compatibility
+    addressLine1 = graphene.String(required=True)  # Primary camelCase field
+    address_line_2 = graphene.String()  # Keep for backward compatibility
+    addressLine2 = graphene.String()  # Primary camelCase field
     city = graphene.String(required=True)
     state = graphene.String(required=True)
-    postal_code = graphene.String(required=True)
+    postal_code = graphene.String()  # Keep for backward compatibility
+    postalCode = graphene.String(required=True)  # Primary camelCase field
     country = graphene.String(required=True)
     phone = graphene.String(required=True)
     email = graphene.String(required=True)
-    can_ship = graphene.Boolean(default_value=True)
-    can_click_collect = graphene.Boolean(default_value=True)
-    can_cross_border = graphene.Boolean(default_value=False)
-    is_active = graphene.Boolean(default_value=True)
-    operating_hours = graphene.JSONString()
+    can_ship = graphene.Boolean()  # Keep for backward compatibility
+    canShip = graphene.Boolean(default_value=True)  # Primary camelCase field
+    can_click_collect = graphene.Boolean()  # Keep for backward compatibility
+    canClickCollect = graphene.Boolean(default_value=True)  # Primary camelCase field
+    can_cross_border = graphene.Boolean()  # Keep for backward compatibility
+    canCrossBorder = graphene.Boolean(default_value=False)  # Primary camelCase field
+    is_active = graphene.Boolean()  # Keep for backward compatibility
+    isActive = graphene.Boolean(default_value=True)  # Primary camelCase field
+    operating_hours = graphene.JSONString()  # Keep for backward compatibility
+    operatingHours = graphene.JSONString()  # Primary camelCase field
 
 
 class BranchUpdateInput(graphene.InputObjectType):
@@ -215,34 +224,45 @@ class BranchCreate(BaseMutation):
     def perform_mutation(cls, root, info, input):
         """Create a new branch"""
         try:
-            # Convert region_id to integer if it's a string
-            region_id = getattr(input, 'region_id', None)
+            # Handle both camelCase and snake_case field names
+            # Convert region_id/regionId to integer if it's a string
+            region_id = getattr(input, 'regionId', None) or getattr(input, 'region_id', None)
             if region_id is None:
-                raise ValidationError("region_id is required")
+                raise ValidationError("regionId is required")
             if isinstance(region_id, str):
                 # Try to extract numeric ID from string
                 try:
                     region_id = int(region_id)
                 except ValueError:
-                    raise ValidationError(f"Invalid region_id format: '{region_id}'. Must be a valid integer.")
+                    raise ValidationError(f"Invalid regionId format: '{region_id}'. Must be a valid integer.")
+            
+            # Get field values, preferring camelCase but falling back to snake_case
+            address_line_1 = getattr(input, 'addressLine1', None) or getattr(input, 'address_line_1', None)
+            address_line_2 = getattr(input, 'addressLine2', None) or getattr(input, 'address_line_2', None) or ''
+            postal_code = getattr(input, 'postalCode', None) or getattr(input, 'postal_code', None)
+            can_ship = getattr(input, 'canShip', getattr(input, 'can_ship', True))
+            can_click_collect = getattr(input, 'canClickCollect', getattr(input, 'can_click_collect', True))
+            can_cross_border = getattr(input, 'canCrossBorder', getattr(input, 'can_cross_border', False))
+            is_active = getattr(input, 'isActive', getattr(input, 'is_active', True))
+            operating_hours = getattr(input, 'operatingHours', None) or getattr(input, 'operating_hours', None) or {}
             
             branch = Branch.objects.create(
                 name=input.name,
                 code=input.code,
                 region_id=region_id,
-                address_line_1=input.address_line_1,
-                address_line_2=getattr(input, 'address_line_2', ''),
+                address_line_1=address_line_1,
+                address_line_2=address_line_2,
                 city=input.city,
                 state=input.state,
-                postal_code=input.postal_code,
+                postal_code=postal_code,
                 country=input.country,
                 phone=input.phone,
                 email=input.email,
-                can_ship=getattr(input, 'can_ship', True),
-                can_click_collect=getattr(input, 'can_click_collect', True),
-                can_cross_border=getattr(input, 'can_cross_border', False),
-                is_active=getattr(input, 'is_active', True),
-                operating_hours=getattr(input, 'operating_hours', {}),
+                can_ship=can_ship,
+                can_click_collect=can_click_collect,
+                can_cross_border=can_cross_border,
+                is_active=is_active,
+                operating_hours=operating_hours,
             )
             
             return BranchCreate(branch=branch, errors=None)
