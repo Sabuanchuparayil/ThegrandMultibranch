@@ -94,24 +94,37 @@ else:
         pass
 
 
-# Create the extended schema
-schema = graphene.Schema(query=Query, mutation=Mutation)
-
-# Debug: Log schema creation and verify branches query exists
-print(f"✅ Extended GraphQL schema created - Branches: {_BRANCHES_AVAILABLE}, Dashboard: {_DASHBOARD_AVAILABLE}, Saleor: {_SALEOR_AVAILABLE}")
-
-# Verify branches query is in the schema
-if _BRANCHES_AVAILABLE:
-    try:
-        query_type = schema.query_type
-        if hasattr(query_type, '_meta') and hasattr(query_type._meta, 'fields'):
-            if 'branches' in query_type._meta.fields:
-                print("✅ 'branches' query verified in schema")
-            else:
-                print("⚠️  WARNING: 'branches' query NOT found in schema fields")
-                print(f"   Available query fields: {list(query_type._meta.fields.keys())[:20]}")
-    except Exception as e:
-        print(f"⚠️  Error verifying schema: {e}")
+# Create the extended schema with error handling
+schema = None
+try:
+    schema = graphene.Schema(query=Query, mutation=Mutation)
+    print(f"✅ Extended GraphQL schema created - Branches: {_BRANCHES_AVAILABLE}, Dashboard: {_DASHBOARD_AVAILABLE}, Saleor: {_SALEOR_AVAILABLE}")
+    
+    # Verify branches query is in the schema
+    if _BRANCHES_AVAILABLE:
+        try:
+            query_type = schema.query_type
+            if hasattr(query_type, '_meta') and hasattr(query_type._meta, 'fields'):
+                if 'branches' in query_type._meta.fields:
+                    print("✅ 'branches' query verified in schema")
+                else:
+                    print("⚠️  WARNING: 'branches' query NOT found in schema fields")
+                    print(f"   Available query fields: {list(query_type._meta.fields.keys())[:20]}")
+        except Exception as e:
+            print(f"⚠️  Error verifying schema: {e}")
+            import traceback
+            traceback.print_exc()
+except Exception as e:
+    print(f"❌ ERROR: Failed to create GraphQL schema: {e}")
+    import traceback
+    traceback.print_exc()
+    # Create a minimal schema to prevent import errors
+    class MinimalQuery(graphene.ObjectType):
+        pass
+    class MinimalMutation(graphene.ObjectType):
+        pass
+    schema = graphene.Schema(query=MinimalQuery, mutation=MinimalMutation)
+    print("⚠️  Created minimal fallback schema")
 
 # Export for use in URLs/views
 __all__ = ['schema', 'Query', 'Mutation']

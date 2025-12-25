@@ -3,15 +3,20 @@ URL Configuration for Grand Gold & Diamonds
 
 This extends Saleor's URLs and adds GraphQL endpoint with custom schema
 """
+import traceback
 from django.conf import settings
 from django.urls import path, include
 
-# Import our extended GraphQL schema
+# Import our extended GraphQL schema with comprehensive error handling
+extended_schema = None
+_EXTENDED_SCHEMA_AVAILABLE = False
 try:
     from saleor.graphql.schema import schema as extended_schema
     _EXTENDED_SCHEMA_AVAILABLE = True
-except ImportError as e:
-    print(f"Warning: Extended GraphQL schema not available: {e}")
+    print("✅ Successfully imported extended GraphQL schema")
+except Exception as e:
+    print(f"❌ ERROR: Failed to import extended GraphQL schema: {e}")
+    print(f"   Traceback: {traceback.format_exc()}")
     _EXTENDED_SCHEMA_AVAILABLE = False
     extended_schema = None
 
@@ -27,17 +32,29 @@ except ImportError:
     except ImportError:
         print("⚠️  Warning: Could not import GraphQLView - GraphQL endpoint may not work")
 
-# Import Saleor URLs
+# Import Saleor URLs with error handling
+saleor_urlpatterns = []
 try:
     from saleor.urls import urlpatterns as saleor_urlpatterns
     # Filter out Saleor's /graphql/ path if it exists (we'll use our own)
-    saleor_urlpatterns = [
-        url_pattern for url_pattern in saleor_urlpatterns
-        if not (hasattr(url_pattern, 'pattern') and 
-                hasattr(url_pattern.pattern, 'regex') and 
-                url_pattern.pattern.regex.pattern == r'^graphql/$')
-    ]
-except ImportError:
+    # Use a safer filtering approach
+    filtered_patterns = []
+    for url_pattern in saleor_urlpatterns:
+        # Check if this is a graphql path by examining the pattern
+        is_graphql = False
+        try:
+            if hasattr(url_pattern, 'pattern'):
+                pattern_str = str(url_pattern.pattern)
+                if 'graphql' in pattern_str.lower():
+                    is_graphql = True
+        except:
+            pass
+        if not is_graphql:
+            filtered_patterns.append(url_pattern)
+    saleor_urlpatterns = filtered_patterns
+    print(f"✅ Loaded {len(saleor_urlpatterns)} URL patterns from Saleor (graphql filtered out)")
+except Exception as e:
+    print(f"⚠️  Warning: Could not import Saleor URLs: {e}")
     saleor_urlpatterns = []
 
 # Custom URL patterns
@@ -46,27 +63,37 @@ except ImportError:
 urlpatterns = []
 
 # Override GraphQL endpoint with our extended schema (if available)
-if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView:
-    # Add our extended GraphQL endpoint first (Django uses first match)
-    urlpatterns.append(
-        path('graphql/', GraphQLView.as_view(schema=extended_schema))
-    )
-    print("✅ Extended GraphQL schema loaded and endpoint configured")
-    print(f"   Schema type: {type(extended_schema)}")
-    if hasattr(extended_schema, 'query_type'):
-        query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
-        branches_in_schema = 'branches' in query_fields
-        print(f"   Query fields count: {len(query_fields)}")
-        print(f"   'branches' query present: {branches_in_schema}")
-        if not branches_in_schema:
-            print(f"   Available query fields (first 20): {query_fields[:20]}")
+if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
+    try:
+        # Add our extended GraphQL endpoint first (Django uses first match)
+        urlpatterns.append(
+            path('graphql/', GraphQLView.as_view(schema=extended_schema))
+        )
+        print("✅ Extended GraphQL schema loaded and endpoint configured")
+        print(f"   Schema type: {type(extended_schema)}")
+        if hasattr(extended_schema, 'query_type'):
+            try:
+                query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
+                branches_in_schema = 'branches' in query_fields
+                print(f"   Query fields count: {len(query_fields)}")
+                print(f"   'branches' query present: {branches_in_schema}")
+                if not branches_in_schema:
+                    print(f"   Available query fields (first 20): {query_fields[:20]}")
+            except Exception as e:
+                print(f"   ⚠️  Could not verify schema fields: {e}")
+    except Exception as e:
+        print(f"❌ ERROR: Failed to configure GraphQL endpoint: {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
 else:
     print("⚠️  Extended GraphQL schema not available, using Saleor default")
     if not _EXTENDED_SCHEMA_AVAILABLE:
         print("   Reason: Extended schema import failed")
     if not GraphQLView:
         print("   Reason: GraphQLView import failed")
+    if not extended_schema:
+        print("   Reason: extended_schema is None")
 
 # Include Saleor URLs (Saleor's /graphql/ has been filtered out)
 urlpatterns.extend(saleor_urlpatterns)
+print(f"✅ Total URL patterns configured: {len(urlpatterns)}")
 
