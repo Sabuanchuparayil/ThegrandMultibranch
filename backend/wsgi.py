@@ -12,6 +12,7 @@ import subprocess
 
 # CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
 # This must happen before Django or Saleor imports, as Saleor imports magic during module load
+libmagic_found = False
 if 'LD_LIBRARY_PATH' not in os.environ or 'libmagic' not in os.environ.get('LD_LIBRARY_PATH', ''):
     # Find libmagic.so in Nix store
     try:
@@ -29,28 +30,44 @@ if 'LD_LIBRARY_PATH' not in os.environ or 'libmagic' not in os.environ.get('LD_L
             current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
             if libmagic_dir not in current_ld_path:
                 os.environ['LD_LIBRARY_PATH'] = f"{libmagic_dir}:{current_ld_path}" if current_ld_path else libmagic_dir
+                libmagic_found = True
     except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        # If find command fails or times out, try common Nix paths
-        common_paths = [
-            '/nix/store/*/lib/libmagic.so*',
-            '/nix/store/*-file-*/lib/libmagic.so*',
-        ]
-        # Fallback: try to set a reasonable default if we can't find it
-        pass
+        # If find command fails, try using glob to find libmagic
+        try:
+            import glob
+            # Try to find libmagic in common Nix store locations
+            patterns = [
+                '/nix/store/*/lib/libmagic.so*',
+                '/nix/store/*-file-*/lib/libmagic.so*',
+            ]
+            for pattern in patterns:
+                matches = glob.glob(pattern)
+                if matches:
+                    libmagic_dir = os.path.dirname(matches[0])
+                    current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+                    if libmagic_dir not in current_ld_path:
+                        os.environ['LD_LIBRARY_PATH'] = f"{libmagic_dir}:{current_ld_path}" if current_ld_path else libmagic_dir
+                        libmagic_found = True
+                        break
+        except Exception:
+            pass
 
 # Monkey-patch magic import to handle missing libmagic gracefully
 # This must happen before Saleor imports magic (which happens during URL loading)
+# We do this early to prevent ImportError when Saleor tries to import magic
 try:
     import magic
     # Verify it actually works (not just imported)
     try:
         _test_magic = magic.Magic()
         _test_magic.from_file('/dev/null')  # Test if it works
-    except:
-        # If magic doesn't work, use fallback
+        # If we get here, magic works
+    except (OSError, ImportError, Exception):
+        # If magic doesn't work even though imported, use fallback
         raise ImportError("magic module imported but libmagic not functional")
 except (ImportError, OSError, Exception):
     # If magic import fails, create a mock module to prevent ImportError
+    # This allows Saleor to import magic without crashing
     import types
     class MagicFallback:
         """Fallback class when libmagic is not available"""
