@@ -70,13 +70,24 @@ if os.environ.get('DATABASE_URL'):
             if 'libmagic' in error_msg:
                 # Try to run migrations using a subprocess to avoid libmagic import issues
                 try:
+                    # Ensure virtual environment is activated in subprocess
+                    subprocess_env = os.environ.copy()
+                    # Add virtual environment to PATH if it exists
+                    venv_python = os.path.join(backend_dir, '.venv', 'bin', 'python')
+                    if os.path.exists(venv_python):
+                        subprocess_env['PATH'] = os.path.join(backend_dir, '.venv', 'bin') + ':' + subprocess_env.get('PATH', '')
+                        # Use venv python instead of sys.executable
+                        python_cmd = venv_python
+                    else:
+                        python_cmd = sys.executable
+                    
                     result = subprocess.run(
-                        [sys.executable, 'manage.py', 'migrate', '--noinput'],
+                        [python_cmd, 'manage.py', 'migrate', '--noinput'],
                         cwd=backend_dir,
                         capture_output=True,
                         text=True,
                         timeout=60,
-                        env=os.environ.copy()
+                        env=subprocess_env
                     )
                     if result.returncode == 0:
                         print("✅ Migrations checked/run on startup (via subprocess)")
