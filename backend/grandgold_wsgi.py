@@ -26,6 +26,28 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "grandgold_settings"
 print(f"🔍 [BOOT] grandgold_wsgi: DJANGO_SETTINGS_MODULE was {_prev_settings!r}, now {os.environ['DJANGO_SETTINGS_MODULE']!r}")
 # #endregion
 
+# Set up libmagic path before running migrations
+# This is needed for python-magic which is used by Saleor
+# The nixpacks start command sets this, but we need it for migrations too
+try:
+    import subprocess
+    result = subprocess.run(
+        ['find', '/nix/store', '-name', 'libmagic.so*', '2>/dev/null'],
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=5
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        libmagic_path = result.stdout.strip().split('\n')[0]
+        libmagic_dir = os.path.dirname(libmagic_path)
+        current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        if libmagic_dir and libmagic_dir not in current_ld_path:
+            os.environ['LD_LIBRARY_PATH'] = f"{current_ld_path}:{libmagic_dir}" if current_ld_path else libmagic_dir
+except Exception:
+    # If we can't find libmagic, that's OK - migrations might still work
+    pass
+
 # Run migrations on startup if DATABASE_URL is available
 # This ensures migrations run even if they didn't run during build
 if os.environ.get('DATABASE_URL'):
@@ -43,8 +65,29 @@ if os.environ.get('DATABASE_URL'):
             call_command('migrate', verbosity=0, interactive=False)
             print("✅ Migrations checked/run on startup")
         except Exception as e:
-            print(f"⚠️  Could not run migrations on startup: {e}")
-            print("   This is OK - migrations may have already been run during build")
+            error_msg = str(e).lower()
+            # libmagic errors are not critical - migrations can still work
+            if 'libmagic' in error_msg:
+                # Try to run migrations using a subprocess to avoid libmagic import issues
+                try:
+                    result = subprocess.run(
+                        [sys.executable, 'manage.py', 'migrate', '--noinput'],
+                        cwd=backend_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        env=os.environ.copy()
+                    )
+                    if result.returncode == 0:
+                        print("✅ Migrations checked/run on startup (via subprocess)")
+                    else:
+                        print(f"⚠️  Migrations may have already been run (subprocess returned {result.returncode})")
+                except Exception as e2:
+                    print(f"⚠️  Could not run migrations on startup: {e2}")
+                    print("   This is OK - migrations may have already been run during build")
+            else:
+                print(f"⚠️  Could not run migrations on startup: {e}")
+                print("   This is OK - migrations may have already been run during build")
     except Exception as e:
         print(f"⚠️  Database not available on startup: {e}")
         print("   Migrations will run when database becomes available")
