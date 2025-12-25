@@ -2,7 +2,8 @@
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci"]
+# Use npm install to ensure all dependencies including TypeScript are installed
+cmds = ["npm install"]
 
 [phases.build]
 cmds = ["npm run build"]
