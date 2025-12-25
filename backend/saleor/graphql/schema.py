@@ -8,16 +8,76 @@ instead of Saleor's default schema.
 import graphene
 
 # Import Saleor's core schema components
-# CRITICAL: Import Saleor's schema module first to ensure all types are registered
+# CRITICAL: Import Saleor's Query and Mutation from core.schema, NOT from graphql.schema
+# Importing from graphql.schema would import our own file (circular import)
 try:
-    # Import Saleor's full schema module first - this registers all types (Product, ProductVariant, etc.)
-    import saleor.graphql.schema as saleor_schema_module
-    print(f"✅ Imported Saleor's schema module: {getattr(saleor_schema_module, '__file__', 'unknown')}")
+    # #region agent log
+    import json
+    import time
+    import os
+    log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+    log_dir = os.path.dirname(log_path)
+    if not os.path.exists(log_dir):
+        log_path = '/tmp/debug.log'
+    try:
+        with open(log_path, 'a') as f:
+            f.write(json.dumps({
+                'timestamp': int(time.time() * 1000),
+                'location': 'saleor/graphql/schema.py:import_saleor',
+                'message': 'Attempting to import Saleor Query and Mutation',
+                'data': {'current_file': __file__},
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'A'
+            }) + '\n')
+    except:
+        pass
+    # #endregion
     
-    # Now import the Query and Mutation classes
+    # CRITICAL: Import from core.schema, NOT from graphql.schema
+    # graphql.schema would import our own file (circular import)
+    # core.schema is Saleor's actual Query/Mutation definitions
     from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
+    
+    # Verify we got the right classes
+    print(f"✅ Imported SaleorQuery from: {SaleorQuery.__module__}")
+    print(f"✅ Imported SaleorMutation from: {SaleorMutation.__module__}")
+    
+    # Check if SaleorQuery has the expected fields
+    if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+        saleor_fields = list(SaleorQuery._meta.fields.keys())
+        has_products = 'products' in saleor_fields
+        has_orders = 'orders' in saleor_fields
+        print(f"✅ SaleorQuery has {len(saleor_fields)} fields")
+        print(f"   'products' present: {has_products}")
+        print(f"   'orders' present: {has_orders}")
+        if not has_products or not has_orders:
+            print(f"   ⚠️  WARNING: Missing expected Saleor fields. Available: {saleor_fields[:20]}")
+    
     _SALEOR_AVAILABLE = True
     print("✅ Saleor Query and Mutation classes imported successfully")
+    
+    # #region agent log
+    try:
+        with open(log_path, 'a') as f:
+            f.write(json.dumps({
+                'timestamp': int(time.time() * 1000),
+                'location': 'saleor/graphql/schema.py:import_saleor',
+                'message': 'Saleor Query and Mutation imported successfully',
+                'data': {
+                    'query_module': SaleorQuery.__module__,
+                    'mutation_module': SaleorMutation.__module__,
+                    'has_products': has_products if 'has_products' in locals() else None,
+                    'has_orders': has_orders if 'has_orders' in locals() else None
+                },
+                'sessionId': 'debug-session',
+                'runId': 'schema-load',
+                'hypothesisId': 'A'
+            }) + '\n')
+    except:
+        pass
+    # #endregion
+    
 except ImportError as import_error:
     print(f"⚠️  Warning: Saleor schema not available: {import_error}")
     import traceback

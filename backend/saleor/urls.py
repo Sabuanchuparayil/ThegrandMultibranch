@@ -172,10 +172,75 @@ urlpatterns = []
 # Override GraphQL endpoint with our extended schema (if available)
 if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
     try:
-        # Create the GraphQL view with our extended schema
+        # Create a wrapper view that logs which schema is being used at runtime
+        def create_graphql_view_with_logging(schema):
+            """Create GraphQL view with runtime logging to verify schema usage"""
+            base_view = GraphQLView.as_view(schema=schema)
+            
+            def wrapped_view(request, *args, **kwargs):
+                """Wrapper that logs schema usage for debugging"""
+                # #region agent log
+                import json
+                import time
+                import os
+                log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.cursor', 'debug.log')
+                log_dir = os.path.dirname(log_path)
+                if not os.path.exists(log_dir):
+                    log_path = '/tmp/debug.log'
+                try:
+                    query_fields_list = []
+                    has_branches = False
+                    if hasattr(schema, 'query_type'):
+                        try:
+                            query_fields_list = list(schema.query_type._meta.fields.keys()) if hasattr(schema.query_type, '_meta') else []
+                            has_branches = 'branches' in query_fields_list
+                        except:
+                            pass
+                    
+                    with open(log_path, 'a') as f:
+                        f.write(json.dumps({
+                            'timestamp': int(time.time() * 1000),
+                            'location': 'saleor/urls.py:wrapped_view',
+                            'message': 'GraphQL request received',
+                            'data': {
+                                'method': request.method,
+                                'path': request.path,
+                                'schema_module': getattr(schema, '__module__', 'unknown'),
+                                'has_query_type': hasattr(schema, 'query_type'),
+                                'query_fields_count': len(query_fields_list),
+                                'has_branches': has_branches,
+                                'first_10_fields': query_fields_list[:10] if query_fields_list else []
+                            },
+                            'sessionId': 'debug-session',
+                            'runId': 'runtime',
+                            'hypothesisId': 'A'
+                        }) + '\n')
+                except:
+                    pass
+                # #endregion
+                
+                # Log schema info to console for Railway logs
+                print(f"🔍 [RUNTIME] GraphQL request - Schema: {getattr(schema, '__module__', 'unknown')}")
+                if hasattr(schema, 'query_type'):
+                    try:
+                        query_fields = list(schema.query_type._meta.fields.keys()) if hasattr(schema.query_type, '_meta') else []
+                        has_branches = 'branches' in query_fields
+                        print(f"🔍 [RUNTIME] Schema has {len(query_fields)} fields, 'branches' present: {has_branches}")
+                        if not has_branches:
+                            print(f"🔍 [RUNTIME] Available fields: {query_fields[:30]}")
+                    except Exception as e:
+                        print(f"🔍 [RUNTIME] Error checking fields: {e}")
+                
+                return base_view(request, *args, **kwargs)
+            
+            return wrapped_view
+        
+        # Create the GraphQL view with our extended schema and logging
+        graphql_view = create_graphql_view_with_logging(extended_schema)
+        
         # Add our extended GraphQL endpoint first (Django uses first match)
         urlpatterns.append(
-            path('graphql/', GraphQLView.as_view(schema=extended_schema))
+            path('graphql/', graphql_view)
         )
         print("✅ Extended GraphQL schema loaded and endpoint configured")
         print(f"   Schema type: {type(extended_schema)}")
