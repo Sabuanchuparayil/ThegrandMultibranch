@@ -463,7 +463,7 @@ function PricingOverrideFormModal({ onClose, onSuccess }: any) {
             <select
               required
               value={formData.overrideType}
-              onChange={(e) => setFormData({ ...formData, overrideType: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, overrideType: e.target.value as 'percentage' | 'fixed' })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="percentage">Percentage Adjustment</option>
