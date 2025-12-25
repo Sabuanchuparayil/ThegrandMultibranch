@@ -137,7 +137,7 @@ class BranchCreateInput(graphene.InputObjectType):
     is_active = graphene.Boolean()  # Keep for backward compatibility
     isActive = graphene.Boolean(default_value=True)  # Primary camelCase field
     operating_hours = JSON()  # Keep for backward compatibility
-    operatingHours = graphene.JSONString()  # Primary camelCase field
+    operatingHours = JSON()  # Primary camelCase field
 
 
 class BranchUpdateInput(graphene.InputObjectType):
@@ -166,7 +166,7 @@ class BranchUpdateInput(graphene.InputObjectType):
     is_active = graphene.Boolean()  # Keep for backward compatibility
     isActive = graphene.Boolean()  # Primary camelCase field
     operating_hours = JSON()  # Keep for backward compatibility
-    operatingHours = graphene.JSONString()  # Primary camelCase field
+    operatingHours = JSON()  # Primary camelCase field
 
 
 # ============================================================================
