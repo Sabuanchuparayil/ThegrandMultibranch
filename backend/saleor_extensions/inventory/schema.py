@@ -118,20 +118,20 @@ except ImportError:
 # Object Types
 # ============================================================================
 
-class ProductType(graphene.ObjectType):
-    """Minimal Product type for admin inventory views."""
+class InventoryProductType(graphene.ObjectType):
+    """Minimal Product type for admin inventory views (renamed to avoid conflict with Saleor's ProductType)."""
 
     id = graphene.ID()
     name = graphene.String()
 
 
-class ProductVariantType(graphene.ObjectType):
-    """Minimal ProductVariant type for admin inventory views."""
+class InventoryProductVariantType(graphene.ObjectType):
+    """Minimal ProductVariant type for admin inventory views (renamed to avoid conflict with Saleor's ProductVariantType)."""
 
     id = graphene.ID()
     name = graphene.String()
     sku = graphene.String()
-    product = graphene.Field(ProductType)
+    product = graphene.Field(InventoryProductType)
 
 
 # BranchType is imported from saleor_extensions.branches.schema to avoid duplicate type definition
