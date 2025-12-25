@@ -19,6 +19,9 @@ cmds = [
 [phases.build]
 cmds = [
   ". .venv/bin/activate && python manage.py collectstatic --noinput || true",
+  # Create migrations for custom apps if they don't exist
+  ". .venv/bin/activate && python manage.py makemigrations --noinput || true",
+  # Run all migrations (Saleor + custom apps)
   ". .venv/bin/activate && python manage.py migrate --noinput || true",
 ]
 
