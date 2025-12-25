@@ -108,28 +108,32 @@ def _graphql_entrypoint(request):
 
         # Create proper Saleor context for GraphQL execution
         # Saleor's resolvers expect a context with 'app' and 'user' attributes
-        try:
-            from saleor.graphql.core.context import SaleorContext
-            # SaleorContext inherits from HttpRequest, so pass request as positional arg
-            # It will handle user extraction from request automatically
-            context = SaleorContext(request)
-            # Ensure app attribute is set (can be None)
-            if not hasattr(context, 'app'):
-                context.app = None
-        except (ImportError, Exception) as e:
-            # Fallback: create a simple context object with required attributes
-            class SimpleContext:
-                def __init__(self, request):
-                    self.request = request
-                    self.app = None
-                    # Ensure user attribute exists (Saleor's BaseMutation expects it)
-                    if hasattr(request, 'user'):
-                        self.user = request.user
-                    else:
-                        # Use anonymous user if not authenticated
-                        from django.contrib.auth.models import AnonymousUser
-                        self.user = AnonymousUser()
-            context = SimpleContext(request)
+        # Since SaleorContext inherits from HttpRequest and can't be instantiated directly,
+        # we create a wrapper that has all the necessary attributes
+        class GraphQLContext:
+            """Context wrapper for GraphQL execution"""
+            def __init__(self, request):
+                # Copy all attributes from request to make it request-like
+                # This allows Saleor's resolvers to access request attributes
+                for attr in dir(request):
+                    if not attr.startswith('_') and not callable(getattr(request, attr, None)):
+                        try:
+                            setattr(self, attr, getattr(request, attr))
+                        except:
+                            pass
+                # Store request reference
+                self.request = request
+                # Saleor expects 'app' attribute (can be None)
+                self.app = None
+                # Saleor expects 'user' attribute (BaseMutation uses info.context.user)
+                if hasattr(request, 'user'):
+                    self.user = request.user
+                else:
+                    # Use anonymous user if not authenticated
+                    from django.contrib.auth.models import AnonymousUser
+                    self.user = AnonymousUser()
+        
+        context = GraphQLContext(request)
         
         result = schema.execute(
             query,
