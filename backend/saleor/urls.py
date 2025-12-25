@@ -71,12 +71,26 @@ urlpatterns = []
 # Override GraphQL endpoint with our extended schema (if available)
 if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
     try:
+        # Create a wrapper view that catches errors and logs them
+        def graphql_view_wrapper(request):
+            """Wrapper for GraphQLView that catches and logs errors"""
+            try:
+                view = GraphQLView.as_view(schema=extended_schema)
+                return view(request)
+            except Exception as e:
+                print(f"❌ CRITICAL ERROR in GraphQL view: {e}")
+                print(f"   Error type: {type(e).__name__}")
+                print(f"   Traceback: {traceback.format_exc()}")
+                # Re-raise to return proper error response
+                raise
+        
         # Add our extended GraphQL endpoint first (Django uses first match)
         urlpatterns.append(
-            path('graphql/', GraphQLView.as_view(schema=extended_schema))
+            path('graphql/', graphql_view_wrapper)
         )
         print("✅ Extended GraphQL schema loaded and endpoint configured")
         print(f"   Schema type: {type(extended_schema)}")
+        print(f"   Schema file location: {getattr(extended_schema, '__module__', 'unknown')}")
         if hasattr(extended_schema, 'query_type'):
             try:
                 query_fields = list(extended_schema.query_type._meta.fields.keys()) if hasattr(extended_schema.query_type, '_meta') else []
