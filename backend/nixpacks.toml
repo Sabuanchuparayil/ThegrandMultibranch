@@ -23,7 +23,8 @@ cmds = [
   ". .venv/bin/activate && python manage.py makemigrations saleor_extensions.regions saleor_extensions.currency saleor_extensions.branches saleor_extensions.inventory --noinput || echo '⚠️  Migrations already exist or apps not found'",
   # Run all migrations (Saleor + custom apps)
   # Note: This requires DATABASE_URL to be set during build
-  ". .venv/bin/activate && python manage.py migrate --noinput || echo '⚠️  Migration failed - will retry on first request'",
+  # If DATABASE_URL is not available, migrations will run on startup instead
+  ". .venv/bin/activate && (python manage.py migrate --noinput 2>&1 || echo '⚠️  Migration failed during build - will retry on startup')",
 ]
 
 [start]

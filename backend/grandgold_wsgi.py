@@ -81,7 +81,11 @@ if os.environ.get('DATABASE_URL'):
                     if result.returncode == 0:
                         print("✅ Migrations checked/run on startup (via subprocess)")
                     else:
-                        print(f"⚠️  Migrations may have already been run (subprocess returned {result.returncode})")
+                        # Show the actual error for debugging
+                        error_output = result.stderr or result.stdout or "No error output"
+                        print(f"⚠️  Migration subprocess failed (exit code {result.returncode})")
+                        print(f"   Error: {error_output[:500]}")  # First 500 chars
+                        print("   This might be OK if migrations were already run during build")
                 except Exception as e2:
                     print(f"⚠️  Could not run migrations on startup: {e2}")
                     print("   This is OK - migrations may have already been run during build")
