@@ -20,11 +20,12 @@ cmds = [
 cmds = [
   ". .venv/bin/activate && python manage.py collectstatic --noinput || true",
   # Set up libmagic path before running migrations (required for Saleor imports)
-  "LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null) && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && . .venv/bin/activate && python manage.py makemigrations regions currency branches inventory --noinput 2>&1 | head -100 || (echo '⚠️  Migrations creation failed or already exist' && LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null) && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && . .venv/bin/activate && python manage.py makemigrations regions currency branches inventory --noinput 2>&1 | tail -20 || echo '⚠️  Skipping makemigrations due to libmagic error')",
+  # Note: makemigrations may fail if DATABASE_URL is not set, which is OK - migrations will be created on startup
+  "LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH}; . .venv/bin/activate && python manage.py makemigrations regions currency branches inventory --noinput 2>&1 || echo '⚠️  Migrations creation skipped (will retry on startup if needed)'",
   # Run all migrations (Saleor + custom apps)
   # Note: This requires DATABASE_URL to be set during build
   # If DATABASE_URL is not available, migrations will run on startup instead
-  "LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null) && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && . .venv/bin/activate && (python manage.py migrate --noinput 2>&1 | head -200 || (echo '⚠️  Migration failed during build - will retry on startup' && LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null) && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH} && . .venv/bin/activate && python manage.py migrate --noinput 2>&1 | tail -30 || echo '⚠️  Skipping migrate due to error'))",
+  "LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIB_PATH:+:$LIB_PATH}; . .venv/bin/activate && python manage.py migrate --noinput 2>&1 || echo '⚠️  Migration skipped during build (will retry on startup)'",
 ]
 
 [start]
