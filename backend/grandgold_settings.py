@@ -747,6 +747,38 @@ CORS_ALLOW_METHODS = [
 # Static files configuration for Railway
 STATIC_ROOT = os.path.join(os.path.dirname(__file__), 'staticfiles')
 
+# -----------------------------------------------------------------------------
+# Host validation (Django ALLOWED_HOSTS)
+# -----------------------------------------------------------------------------
+# Runtime evidence: new Railway domain requests are returning a plain HTML 400.
+# That pattern strongly indicates Django is rejecting the Host header (DisallowedHost),
+# which happens BEFORE URL routing. Ensure Railway domains are allowed.
+_allowed_hosts = globals().get('ALLOWED_HOSTS', [])
+if isinstance(_allowed_hosts, str):
+    _allowed_hosts = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
+elif not isinstance(_allowed_hosts, (list, tuple)):
+    _allowed_hosts = []
+
+# Allow Railway public domains (matches e.g. backend-production-fb5f.up.railway.app)
+if '.railway.app' not in _allowed_hosts:
+    _allowed_hosts.append('.railway.app')
+
+# Common local dev hosts
+for _h in ('localhost', '127.0.0.1', '0.0.0.0'):
+    if _h not in _allowed_hosts:
+        _allowed_hosts.append(_h)
+
+ALLOWED_HOSTS = _allowed_hosts
+
+# #region agent log
+try:
+    _log_msg('grandgold_settings.py:ALLOWED_HOSTS', 'Configured ALLOWED_HOSTS', {
+        'allowed_hosts': ALLOWED_HOSTS
+    }, 'H4')
+except Exception:
+    pass
+# #endregion
+
 # URL Configuration
 # CRITICAL: Always use our URLConf so /graphql/ is overridden with our extended schema.
 # Do NOT rely on 'saleor.urls' resolving to local code; in production Saleor is installed
