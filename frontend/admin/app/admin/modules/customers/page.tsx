@@ -30,7 +30,7 @@ export default function CustomersModule() {
       first: 50,
       filter: { search: searchTerm || null },
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: false,
   });

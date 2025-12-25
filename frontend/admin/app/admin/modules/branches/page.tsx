@@ -36,7 +36,7 @@ export default function BranchesModule() {
   const [editingBranch, setEditingBranch] = useState<any>(null);
 
   const { data, loading, error, refetch } = useQuery(GET_BRANCHES, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: false, // Don't trigger loading on refetch
   });

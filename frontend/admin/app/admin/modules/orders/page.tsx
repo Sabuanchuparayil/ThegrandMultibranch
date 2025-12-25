@@ -41,7 +41,7 @@ export default function OrdersModule() {
         status: statusFilter !== 'all' ? statusFilter : null,
       },
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: false,
   });

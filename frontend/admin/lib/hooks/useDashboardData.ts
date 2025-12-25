@@ -40,8 +40,8 @@ export function useExecutiveDashboard(filters: ExecutiveDashboardFilters = {}) {
     },
     // Poll every 30 seconds for real-time updates
     pollInterval: 30000,
-    // Use cache-and-network policy for fresh data
-    fetchPolicy: 'cache-and-network',
+    // Use cache-first policy for fresh data (cache-and-network not available in Apollo Client 3.x)
+    fetchPolicy: 'cache-first',
   });
 
   // Calculate KPIs from order data

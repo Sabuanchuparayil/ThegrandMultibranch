@@ -42,7 +42,7 @@ export default function InventoryModule() {
       branchId: selectedBranch,
       lowStockOnly,
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: false,
     skip: false, // Always try to fetch, but fallback to mock data

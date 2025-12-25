@@ -44,7 +44,7 @@ export default function ProductsModule() {
       first: 50,
       search: searchTerm || null,
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: false,
   });
