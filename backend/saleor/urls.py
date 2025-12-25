@@ -184,6 +184,11 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
             
             def wrapped_view(request, *args, **kwargs):
                 """Wrapper that logs schema usage for debugging"""
+                # CRITICAL: Log that OUR view is being called
+                print(f"🔍 [RUNTIME] ⭐ OUR EXTENDED GRAPHQL VIEW CALLED ⭐")
+                print(f"🔍 [RUNTIME] Request path: {request.path}")
+                print(f"🔍 [RUNTIME] Request method: {request.method}")
+                
                 # #region agent log
                 import json
                 import time
@@ -195,10 +200,14 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
                 try:
                     query_fields_list = []
                     has_branches = False
+                    has_products = False
+                    has_orders = False
                     if hasattr(schema, 'query_type'):
                         try:
                             query_fields_list = list(schema.query_type._meta.fields.keys()) if hasattr(schema.query_type, '_meta') else []
                             has_branches = 'branches' in query_fields_list
+                            has_products = 'products' in query_fields_list
+                            has_orders = 'orders' in query_fields_list
                         except:
                             pass
                     
@@ -206,7 +215,7 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
                         f.write(json.dumps({
                             'timestamp': int(time.time() * 1000),
                             'location': 'saleor/urls.py:wrapped_view',
-                            'message': 'GraphQL request received',
+                            'message': 'OUR EXTENDED GraphQL view called',
                             'data': {
                                 'method': request.method,
                                 'path': request.path,
@@ -214,7 +223,9 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
                                 'has_query_type': hasattr(schema, 'query_type'),
                                 'query_fields_count': len(query_fields_list),
                                 'has_branches': has_branches,
-                                'first_10_fields': query_fields_list[:10] if query_fields_list else []
+                                'has_products': has_products,
+                                'has_orders': has_orders,
+                                'first_30_fields': query_fields_list[:30] if query_fields_list else []
                             },
                             'sessionId': 'debug-session',
                             'runId': 'runtime',
@@ -225,16 +236,25 @@ if _EXTENDED_SCHEMA_AVAILABLE and GraphQLView and extended_schema:
                 # #endregion
                 
                 # Log schema info to console for Railway logs
-                print(f"🔍 [RUNTIME] GraphQL request - Schema: {getattr(schema, '__module__', 'unknown')}")
+                print(f"🔍 [RUNTIME] Schema module: {getattr(schema, '__module__', 'unknown')}")
                 if hasattr(schema, 'query_type'):
                     try:
                         query_fields = list(schema.query_type._meta.fields.keys()) if hasattr(schema.query_type, '_meta') else []
                         has_branches = 'branches' in query_fields
-                        print(f"🔍 [RUNTIME] Schema has {len(query_fields)} fields, 'branches' present: {has_branches}")
-                        if not has_branches:
-                            print(f"🔍 [RUNTIME] Available fields: {query_fields[:30]}")
+                        has_products = 'products' in query_fields
+                        has_orders = 'orders' in query_fields
+                        print(f"🔍 [RUNTIME] Schema has {len(query_fields)} fields")
+                        print(f"🔍 [RUNTIME] 'branches' present: {has_branches}")
+                        print(f"🔍 [RUNTIME] 'products' present: {has_products}")
+                        print(f"🔍 [RUNTIME] 'orders' present: {has_orders}")
+                        if not has_branches or not has_products:
+                            print(f"🔍 [RUNTIME] ⚠️  Missing expected fields! Available: {query_fields[:50]}")
                     except Exception as e:
                         print(f"🔍 [RUNTIME] Error checking fields: {e}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print(f"🔍 [RUNTIME] ❌ Schema has no query_type attribute!")
                 
                 return base_view(request, *args, **kwargs)
             
