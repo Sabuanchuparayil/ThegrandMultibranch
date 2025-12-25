@@ -119,12 +119,36 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     # Create a minimal schema to prevent import errors
-    class MinimalQuery(graphene.ObjectType):
-        pass
-    class MinimalMutation(graphene.ObjectType):
-        pass
-    schema = graphene.Schema(query=MinimalQuery, mutation=MinimalMutation)
-    print("⚠️  Created minimal fallback schema")
+    # Wrap fallback creation in error handling to prevent schema from being None
+    try:
+        class MinimalQuery(graphene.ObjectType):
+            pass
+        class MinimalMutation(graphene.ObjectType):
+            pass
+        schema = graphene.Schema(query=MinimalQuery, mutation=MinimalMutation)
+        print("⚠️  Created minimal fallback schema")
+    except Exception as fallback_error:
+        print(f"❌ CRITICAL ERROR: Failed to create even minimal fallback schema: {fallback_error}")
+        traceback.print_exc()
+        # Last resort: create the most basic schema possible
+        # This should never fail unless graphene itself is broken
+        try:
+            class EmptyQuery(graphene.ObjectType):
+                """Empty query type as last resort"""
+                pass
+            class EmptyMutation(graphene.ObjectType):
+                """Empty mutation type as last resort"""
+                pass
+            schema = graphene.Schema(query=EmptyQuery, mutation=EmptyMutation)
+            print("⚠️  Created empty fallback schema as last resort")
+        except Exception as final_error:
+            # If even this fails, graphene is fundamentally broken
+            # Raise an exception to prevent silent failures
+            raise RuntimeError(
+                f"CRITICAL: Unable to create any GraphQL schema. "
+                f"Original error: {e}, Fallback error: {fallback_error}, "
+                f"Final error: {final_error}. This indicates a fundamental issue with graphene installation."
+            ) from final_error
 
 # Export for use in URLs/views
 __all__ = ['schema', 'Query', 'Mutation']
