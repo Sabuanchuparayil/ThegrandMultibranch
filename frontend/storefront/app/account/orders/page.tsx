@@ -42,7 +42,7 @@ const statusColors: Record<string, string> = {
 export default function OrdersPage() {
   const { data, loading, error } = useQuery(GET_USER_ORDERS, {
     variables: { first: 20 },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   const orders = data?.me?.orders?.edges?.map((edge: any) => edge.node) || [];

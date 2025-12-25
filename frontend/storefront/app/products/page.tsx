@@ -55,7 +55,7 @@ export default function ProductsPage() {
       },
       sortBy: sortBy,
     },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   const products = data?.products?.edges?.map((edge: any) => edge.node) || [];

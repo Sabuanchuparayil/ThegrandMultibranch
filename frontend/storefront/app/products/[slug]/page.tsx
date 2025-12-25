@@ -54,7 +54,7 @@ export default function ProductDetailPage() {
 
   const { data, loading, error } = useQuery(GET_PRODUCT, {
     variables: { slug },
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   const product = data?.product;

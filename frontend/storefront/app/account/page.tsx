@@ -18,7 +18,7 @@ const GET_USER_PROFILE = gql`
 
 export default function AccountOverviewPage() {
   const { data, loading, error } = useQuery(GET_USER_PROFILE, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   const user = data?.me;
