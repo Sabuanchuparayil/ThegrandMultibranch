@@ -228,7 +228,7 @@ export function useLowStockAlerts(branchId?: string, regionCode?: string) {
       regionCode: regionCode || null,
     },
     pollInterval: 60000, // Poll every minute
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'cache-first',
   });
 
   return {
