@@ -132,21 +132,21 @@ except Exception as e1:
         
         try:
             from saleor.graphql.core.schema import Query as SaleorQuery, Mutation as SaleorMutation
-        _SALEOR_AVAILABLE = True
-        print(f"✅ [SCHEMA] Strategy 2 succeeded - Imported from core.schema")
-        print(f"   SaleorQuery module: {SaleorQuery.__module__}")
-        if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
-            fields = list(SaleorQuery._meta.fields.keys())
-            print(f"   SaleorQuery has {len(fields)} fields")
-            print(f"   Has products: {'products' in fields}")
-            print(f"   Has orders: {'orders' in fields}")
-            print(f"   Has users: {'users' in fields}")
-        _log(
-            "grandgold_graphql/schema.py:import_saleor",
-            "Imported Saleor core schema (strategy 2)",
-            {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
-            "H3",
-        )
+            _SALEOR_AVAILABLE = True
+            print(f"✅ [SCHEMA] Strategy 2 succeeded - Imported from core.schema")
+            print(f"   SaleorQuery module: {SaleorQuery.__module__}")
+            if hasattr(SaleorQuery, '_meta') and hasattr(SaleorQuery._meta, 'fields'):
+                fields = list(SaleorQuery._meta.fields.keys())
+                print(f"   SaleorQuery has {len(fields)} fields")
+                print(f"   Has products: {'products' in fields}")
+                print(f"   Has orders: {'orders' in fields}")
+                print(f"   Has users: {'users' in fields}")
+            _log(
+                "grandgold_graphql/schema.py:import_saleor",
+                "Imported Saleor core schema (strategy 2)",
+                {"query_module": SaleorQuery.__module__, "mutation_module": SaleorMutation.__module__},
+                "H3",
+            )
         finally:
             # Restore LD_LIBRARY_PATH
             if _old_ld_path:
