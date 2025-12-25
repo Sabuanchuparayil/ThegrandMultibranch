@@ -12,6 +12,14 @@ from saleor_extensions.inventory.models import (
     LowStockAlert,
 )
 from saleor_extensions.branches.models import Branch
+
+# Try to import DateTime from Saleor to avoid duplicate type errors
+try:
+    from saleor.graphql.core.scalars import DateTime
+except ImportError:
+    # Fallback to graphene.DateTime if Saleor's DateTime is not available
+    DateTime = graphene.DateTime
+
 # Import BranchType using lambda to avoid circular imports and duplicate registration
 # Lambda ensures the import happens at schema creation time, not at module import time
 def _get_branch_type():
@@ -138,8 +146,8 @@ class BranchInventoryType(graphene.ObjectType):
     quantity = graphene.Int()
     reserved_quantity = graphene.Int()
     low_stock_threshold = graphene.Int()
-    last_updated = graphene.DateTime()
-    created_at = graphene.DateTime()
+    last_updated = DateTime()
+    created_at = DateTime()
     available_quantity = graphene.Int()
     is_low_stock = graphene.Boolean()
 
@@ -161,7 +169,7 @@ class StockMovementType(graphene.ObjectType):
     reference_number = graphene.String()
     notes = graphene.String()
     created_by = graphene.String()
-    created_at = graphene.DateTime()
+    created_at = DateTime()
 
 
 class StockTransferType(graphene.ObjectType):
@@ -175,8 +183,8 @@ class StockTransferType(graphene.ObjectType):
     status = graphene.String()
     requested_by = graphene.String()
     notes = graphene.String()
-    created_at = graphene.DateTime()
-    updated_at = graphene.DateTime()
+    created_at = DateTime()
+    updated_at = DateTime()
     status_display = graphene.String()
 
     def resolve_status_display(self, info):
@@ -194,9 +202,9 @@ class LowStockAlertType(graphene.ObjectType):
     current_quantity = graphene.Int()
     threshold_quantity = graphene.Int()
     status = graphene.String()
-    notified_at = graphene.DateTime()
-    resolved_at = graphene.DateTime()
-    created_at = graphene.DateTime()
+    notified_at = DateTime()
+    resolved_at = DateTime()
+    created_at = DateTime()
 
 
 # ============================================================================

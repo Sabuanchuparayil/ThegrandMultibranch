@@ -7,12 +7,15 @@ from django.core.exceptions import ValidationError
 from saleor_extensions.branches.models import Branch
 from saleor_extensions.regions.models import Region
 
-# Try to import BaseMutation from Saleor, fallback to graphene.Mutation
+# Try to import BaseMutation and DateTime from Saleor, fallback to graphene
 try:
     from saleor.graphql.core.mutations import BaseMutation
     from saleor.graphql.core.types import Error
+    from saleor.graphql.core.scalars import DateTime
     _SALEOR_AVAILABLE = True
 except ImportError:
+    # Fallback to graphene.DateTime if Saleor's DateTime is not available
+    DateTime = graphene.DateTime
     # Fallback if Saleor's BaseMutation is not available
     # Define Error class first so it can be used in BaseMutation
     # Use a graphene ObjectType with resolvers and direct attribute access
@@ -98,8 +101,8 @@ class BranchType(graphene.ObjectType):
     can_cross_border = graphene.Boolean()
     operating_hours = graphene.JSONString()
     is_active = graphene.Boolean()
-    created_at = graphene.DateTime()
-    updated_at = graphene.DateTime()
+    created_at = DateTime()
+    updated_at = DateTime()
 
 
 # ============================================================================
