@@ -206,6 +206,7 @@ def fake_problematic_migrations():
     problematic_migrations = [
         ('site', '0014'),  # display_gross_prices duplicate column
         ('site', '0015'),  # track_inventory_by_default duplicate column in site_sitesettings
+        ('site', '0017_auto_20180803_0528'),  # site_sitesettingstranslation table already exists (partial migration)
         ('checkout', '0008'),  # cart_cart table rename issue
     ]
     
@@ -370,6 +371,14 @@ def ensure_saleor_core_apps():
         In that case, faking `site.0015` is safe because the column is already present.
         """
         msg = str(err)
+        if "site_sitesettingstranslation" in msg and "already exists" in msg:
+            try:
+                print("🔧 Detected existing site_sitesettingstranslation table; faking site.0017 and continuing...")
+                call_command("migrate", "site", "0017_auto_20180803_0528", verbosity=1, interactive=False, fake=True)
+                return True
+            except Exception as e:
+                print(f"⚠️  Failed to fake site.0017_auto_20180803_0528: {e}")
+                return False
         if "site_sitesettings" in msg and "track_inventory_by_default" in msg and "already exists" in msg:
             try:
                 print("🔧 Detected duplicate column on site_sitesettings; faking site.0015 and continuing...")

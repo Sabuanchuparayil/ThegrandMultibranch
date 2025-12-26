@@ -11,6 +11,42 @@ Why this exists:
 import os
 import sys
 
+# Ensure only one gunicorn worker runs startup DB tasks (migrations/repair scripts).
+# Without this, multiple workers can race creating the same permissions/tables and crash with
+# "duplicate key value violates unique constraint" or "relation already exists".
+def _acquire_startup_lock():
+    lock_path = "/tmp/grandgold_startup.lock"
+    try:
+        import fcntl  # Unix-only (Railway is Linux)
+
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            try:
+                os.close(fd)
+            except Exception:
+                pass
+            return None
+    except Exception:
+        # If we can't lock for any reason, fall back to running (best effort).
+        return None
+
+def _release_startup_lock(fd):
+    if fd is None:
+        return
+    try:
+        import fcntl
+
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    except Exception:
+        pass
+    try:
+        os.close(fd)
+    except Exception:
+        pass
+
 # CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
 # This must happen before Django or Saleor imports, as they may trigger libmagic usage
 try:
@@ -73,6 +109,11 @@ except Exception:
 # NOTE: Migrations should be generated locally and committed to git
 # This only applies existing migrations, it does not create new ones
 if os.environ.get('DATABASE_URL'):
+    _lock_fd = _acquire_startup_lock()
+    if _lock_fd is None:
+        print("ℹ️  Startup DB tasks already running in another worker; skipping migrations/repair in this worker.")
+    else:
+        print("🔒 Acquired startup lock; running DB repair + migrations once.")
     try:
         # Use subprocess to run migrations to avoid django.setup() reentrant issues
         # This prevents "populate() isn't reentrant" errors when Django loads the WSGI app
@@ -86,83 +127,85 @@ if os.environ.get('DATABASE_URL'):
         else:
             python_cmd = sys.executable
         
-        # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
-        # First, ensure ALL critical columns exist (comprehensive fix)
-        # This fixes GraphQL query errors for missing columns
-        try:
-            # Try comprehensive fix first, fallback to old fix if needed
-            fix_script = os.path.join(backend_dir, 'fix_all_product_columns.py')
-            if not os.path.exists(fix_script):
-                fix_script = os.path.join(backend_dir, 'fix_product_search_document.py')
+        if _lock_fd is not None:
+            # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
+            # First, ensure ALL critical columns exist (comprehensive fix)
+            # This fixes GraphQL query errors for missing columns
+            try:
+                # Try comprehensive fix first, fallback to old fix if needed
+                fix_script = os.path.join(backend_dir, 'fix_all_product_columns.py')
+                if not os.path.exists(fix_script):
+                    fix_script = os.path.join(backend_dir, 'fix_product_search_document.py')
+                
+                if os.path.exists(fix_script):
+                    script_name = os.path.basename(fix_script)
+                    print(f"----- Running {script_name} -----")
+                    # Set up libmagic path for subprocess
+                    script_name_only = os.path.basename(fix_script)
+                    shell_cmd = (
+                        f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                        f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                        f"cd {backend_dir} && "
+                        f"{python_cmd} {script_name_only} 2>&1"
+                    )
+                    result = subprocess.run(
+                        ['/bin/bash', '-c', shell_cmd],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        env=subprocess_env
+                    )
+                    if result.returncode == 0:
+                        print(f"✅ {script_name} completed successfully")
+                        if result.stdout:
+                            print(result.stdout[-1000:])  # Show last 1000 chars of output
+                    else:
+                        print(f"⚠️  {script_name} had issues (exit code {result.returncode})")
+                        if result.stderr:
+                            print(f"STDERR: {result.stderr[:500]}")
+                        if result.stdout:
+                            print(f"STDOUT: {result.stdout[:500]}")
+            except Exception as e:
+                print(f"⚠️  Could not run product column fix: {e}")
+        
+        if _lock_fd is not None:
+            # Use smart_migrate.py which handles problematic migrations gracefully
+            shell_cmd = (
+                f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                f"cd {backend_dir} && "
+                f"{python_cmd} smart_migrate.py 2>&1"
+            )
             
-            if os.path.exists(fix_script):
-                script_name = os.path.basename(fix_script)
-                print(f"----- Running {script_name} -----")
-                # Set up libmagic path for subprocess
-                script_name_only = os.path.basename(fix_script)
-                shell_cmd = (
-                    f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
-                    f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
-                    f"cd {backend_dir} && "
-                    f"{python_cmd} {script_name_only} 2>&1"
-                )
-                result = subprocess.run(
-                    ['/bin/bash', '-c', shell_cmd],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    env=subprocess_env
-                )
-                if result.returncode == 0:
-                    print(f"✅ {script_name} completed successfully")
-                    if result.stdout:
-                        print(result.stdout[-1000:])  # Show last 1000 chars of output
-                else:
-                    print(f"⚠️  {script_name} had issues (exit code {result.returncode})")
-                    if result.stderr:
-                        print(f"STDERR: {result.stderr[:500]}")
-                    if result.stdout:
-                        print(f"STDOUT: {result.stdout[:500]}")
-        except Exception as e:
-            print(f"⚠️  Could not run product column fix: {e}")
-        
-        # Use smart_migrate.py which handles problematic migrations gracefully
-        shell_cmd = (
-            f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
-            f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
-            f"cd {backend_dir} && "
-            f"{python_cmd} smart_migrate.py 2>&1"
-        )
-        
-        result = subprocess.run(
-            ['/bin/bash', '-c', shell_cmd],
-            capture_output=True,
-            text=True,
-            timeout=180,  # Increased timeout for smart migration
-            env=subprocess_env
-        )
-        if result.returncode == 0:
-            print("✅ Migrations checked/run on startup (via subprocess)")
-            # Print a short tail of the migration output so Railway logs show what actually happened
-            if result.stdout:
-                tail = result.stdout[-4000:]
-                print("----- smart_migrate.py output (tail) -----")
-                print(tail)
-                print("----- end smart_migrate.py output -----")
-        else:
-            # Show the actual error for debugging
-            error_output = result.stderr or result.stdout or "No error output"
-            print(f"⚠️  Migration subprocess failed (exit code {result.returncode})")
-            # Print a tail of stdout/stderr to capture the actual failure cause (often near the end)
-            if result.stdout:
-                print("----- smart_migrate.py STDOUT (tail) -----")
-                print(result.stdout[-6000:])
-                print("----- end smart_migrate.py STDOUT -----")
-            if error_output:
-                print("----- smart_migrate.py STDERR (tail) -----")
-                print(error_output[-6000:])
-                print("----- end smart_migrate.py STDERR -----")
-            print("   This might be OK if migrations were already run during build")
+            result = subprocess.run(
+                ['/bin/bash', '-c', shell_cmd],
+                capture_output=True,
+                text=True,
+                timeout=180,  # Increased timeout for smart migration
+                env=subprocess_env
+            )
+            if result.returncode == 0:
+                print("✅ Migrations checked/run on startup (via subprocess)")
+                # Print a short tail of the migration output so Railway logs show what actually happened
+                if result.stdout:
+                    tail = result.stdout[-4000:]
+                    print("----- smart_migrate.py output (tail) -----")
+                    print(tail)
+                    print("----- end smart_migrate.py output -----")
+            else:
+                # Show the actual error for debugging
+                error_output = result.stderr or result.stdout or "No error output"
+                print(f"⚠️  Migration subprocess failed (exit code {result.returncode})")
+                # Print a tail of stdout/stderr to capture the actual failure cause (often near the end)
+                if result.stdout:
+                    print("----- smart_migrate.py STDOUT (tail) -----")
+                    print(result.stdout[-6000:])
+                    print("----- end smart_migrate.py STDOUT -----")
+                if error_output:
+                    print("----- smart_migrate.py STDERR (tail) -----")
+                    print(error_output[-6000:])
+                    print("----- end smart_migrate.py STDERR -----")
+                print("   This might be OK if migrations were already run during build")
     except Exception as e:
         error_msg = str(e).lower()
         if 'database' in error_msg or 'connection' in error_msg:
@@ -171,6 +214,8 @@ if os.environ.get('DATABASE_URL'):
         else:
             print(f"⚠️  Could not run migrations on startup: {e}")
             print("   This is OK - migrations may have already been run during build")
+    finally:
+        _release_startup_lock(_lock_fd)
 
 # Create application
 from django.core.wsgi import get_wsgi_application  # noqa: E402
