@@ -41,3 +41,4 @@ class ExchangeRate(models.Model):
     def __str__(self):
         return f"{self.from_currency.code} to {self.to_currency.code}: {self.rate}"
 
+

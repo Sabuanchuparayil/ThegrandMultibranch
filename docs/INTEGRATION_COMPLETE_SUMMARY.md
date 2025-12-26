@@ -143,3 +143,4 @@
 
 **All integration preparation is complete! You're ready to integrate with Saleor.** 🚀
 
+

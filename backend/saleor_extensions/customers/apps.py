@@ -6,3 +6,4 @@ class CustomersConfig(AppConfig):
     name = 'saleor_extensions.customers'
     verbose_name = 'Customers'
 
+

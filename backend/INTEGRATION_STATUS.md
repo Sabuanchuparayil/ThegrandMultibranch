@@ -130,3 +130,4 @@ Use `INTEGRATION_CHECKLIST.md` to track your progress through:
 
 **Next Action**: Install Saleor and follow the integration steps above.
 
+

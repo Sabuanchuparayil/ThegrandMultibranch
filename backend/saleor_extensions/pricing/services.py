@@ -4,7 +4,7 @@ Pricing calculation services for jewellery products
 from decimal import Decimal
 from django.utils import timezone
 from saleor_extensions.pricing.models import (
-    GoldRate, MakingChargeRule, BranchPricingOverride, RegionPricing
+    GoldRate, MakingChargeRule, BranchPricingOverride, PricingOverride
 )
 
 
@@ -81,7 +81,7 @@ class PricingCalculator:
         Returns:
             Dict with 'price', 'currency', 'making_charge' if applicable
         """
-        # Priority: Branch override > Region pricing > Default
+        # Priority: Branch override > Default pricing
         if branch:
             try:
                 override = BranchPricingOverride.objects.get(
@@ -103,27 +103,11 @@ class PricingCalculator:
                     }
             except BranchPricingOverride.DoesNotExist:
                 pass
-            
-            region = branch.region
-        
-        if region:
-            try:
-                region_pricing = RegionPricing.objects.get(
-                    region=region,
-                    product_id=product_id,
-                    is_active=True
-                )
-                return {
-                    'price': region_pricing.base_price,
-                    'currency': region_pricing.currency.code,
-                }
-            except RegionPricing.DoesNotExist:
-                pass
         
         return None
     
     @staticmethod
-    def calculate_total_price(gold_rate_per_gram, weight_grams, making_charge_percentage=None, region=None):
+    def calculate_total_price(gold_rate_per_gram, weight_grams, making_charge_percentage=None):
         """
         Calculate total price for gold jewellery
         

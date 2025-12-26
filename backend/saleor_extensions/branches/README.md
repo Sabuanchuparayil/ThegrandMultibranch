@@ -8,3 +8,4 @@ GraphQL API structure is defined in `schema.py`. To activate:
 
 See Saleor documentation for extending GraphQL schema.
 
+

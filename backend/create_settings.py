@@ -140,3 +140,4 @@ print("2. Copy local.py.example to local.py and configure")
 print("3. Update models with ForeignKeys")
 print("4. Run migrations")
 
+

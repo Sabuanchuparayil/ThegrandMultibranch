@@ -151,3 +151,4 @@ class OperationalReportService:
             'by_branch': [],
         }
 
+

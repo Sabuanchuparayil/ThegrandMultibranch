@@ -6,3 +6,4 @@ class RegionsConfig(AppConfig):
     name = 'saleor_extensions.regions'
     verbose_name = 'Regions'
 
+

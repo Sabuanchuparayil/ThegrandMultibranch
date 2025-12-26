@@ -1,6 +1,5 @@
 from django.db import models
 from saleor_extensions.branches.models import Branch
-from saleor_extensions.regions.models import Region
 from saleor_extensions.currency.models import Currency
 
 
@@ -13,18 +12,13 @@ class OrderBranchAssignment(models.Model):
         related_name='branch_assignment'
     )
     
-    # Branch and region assignment
+    # Branch assignment
     branch = models.ForeignKey(
         Branch,
         on_delete=models.PROTECT,
         related_name='orders',
         null=True,
         blank=True
-    )
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.PROTECT,
-        related_name='orders'
     )
     
     # Currency information
@@ -69,14 +63,13 @@ class OrderBranchAssignment(models.Model):
         indexes = [
             models.Index(fields=['order']),
             models.Index(fields=['branch', 'created_at']),
-            models.Index(fields=['region', 'created_at']),
             models.Index(fields=['fulfillment_branch']),
         ]
     
     def __str__(self):
         branch_str = f" - {self.branch.name}" if self.branch else ""
         order_id = str(self.order.id) if hasattr(self.order, 'id') else 'N/A'
-        return f"Order {order_id}{branch_str} ({self.region.code})"
+        return f"Order {order_id}{branch_str}"
 
 
 class ManualOrder(models.Model):

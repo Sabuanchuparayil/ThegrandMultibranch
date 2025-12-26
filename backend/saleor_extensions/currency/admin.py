@@ -16,3 +16,4 @@ class ExchangeRateAdmin(admin.ModelAdmin):
     search_fields = ('from_currency__code', 'to_currency__code')
     readonly_fields = ('created_at',)
 
+

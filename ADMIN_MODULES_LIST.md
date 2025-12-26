@@ -26,3 +26,4 @@ Additional modules (supporting):
 - **Regions** - Region management
 - **Currency** - Currency and exchange rates
 
+

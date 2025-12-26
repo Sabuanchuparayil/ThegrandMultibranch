@@ -204,3 +204,4 @@ print("   2. Create test data in Django admin")
 print("   3. Use GraphQL playground at /graphql/ endpoint")
 print("   4. Test queries with actual branch and product variant IDs")
 
+

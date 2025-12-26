@@ -183,3 +183,4 @@ All modules are prepared for GraphQL queries:
 
 The admin dashboard UI is fully implemented with interfaces, forms, and data tables for all modules.
 
+

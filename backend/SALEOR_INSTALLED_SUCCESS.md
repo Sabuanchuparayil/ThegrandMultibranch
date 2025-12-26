@@ -87,3 +87,4 @@ pip list | grep saleor
 
 **Status**: Saleor installation complete! Ready for project setup and integration.
 
+

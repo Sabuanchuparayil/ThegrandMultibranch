@@ -6,3 +6,4 @@ class FulfillmentConfig(AppConfig):
     name = 'saleor_extensions.fulfillment'
     verbose_name = 'Fulfillment'
 
+

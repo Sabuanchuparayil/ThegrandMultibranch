@@ -1,5 +1,4 @@
 from django.db import models
-from saleor_extensions.regions.models import Region
 from saleor_extensions.branches.models import Branch
 
 
@@ -19,14 +18,7 @@ class Page(models.Model):
     is_published = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     
-    # Region and branch
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='pages'
-    )
+    # Branch
     branches = models.ManyToManyField(
         Branch,
         related_name='pages',
@@ -44,7 +36,6 @@ class Page(models.Model):
         ordering = ['title']
         indexes = [
             models.Index(fields=['slug', 'is_published', 'is_active']),
-            models.Index(fields=['region', 'is_published']),
         ]
     
     def __str__(self):
@@ -257,4 +248,5 @@ class BranchBranding(models.Model):
     
     def __str__(self):
         return f"Branding for {self.branch.name}"
+
 

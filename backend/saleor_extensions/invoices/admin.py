@@ -77,3 +77,4 @@ class InvoiceTemplateAdmin(admin.ModelAdmin):
         }),
     )
 
+

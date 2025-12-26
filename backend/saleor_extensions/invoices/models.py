@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
-from saleor_extensions.regions.models import Region
 from saleor_extensions.currency.models import Currency
 from saleor_extensions.branches.models import Branch
 
@@ -27,18 +26,13 @@ class Invoice(models.Model):
         related_name='extension_invoices'  # Changed from 'invoices' to avoid conflict
     )
     
-    # Branch and region
+    # Branch
     branch = models.ForeignKey(
         Branch,
         on_delete=models.PROTECT,
         related_name='invoices',
         null=True,
         blank=True
-    )
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.PROTECT,
-        related_name='invoices'
     )
     
     # Link to Saleor User (customer)

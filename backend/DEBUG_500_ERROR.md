@@ -162,3 +162,4 @@ When Django starts successfully, you should see logs like:
 
 The logs will contain the specific Python traceback showing what's failing. Share those logs for targeted debugging.
 
+

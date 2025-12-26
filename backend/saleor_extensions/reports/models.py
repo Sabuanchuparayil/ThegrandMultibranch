@@ -1,6 +1,5 @@
 from django.db import models
 from saleor_extensions.branches.models import Branch
-from saleor_extensions.regions.models import Region
 
 
 class ReportDefinition(models.Model):
@@ -172,4 +171,5 @@ class ScheduledReport(models.Model):
     
     def __str__(self):
         return f"{self.name} - {self.get_frequency_display()}"
+
 

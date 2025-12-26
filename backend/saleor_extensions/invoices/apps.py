@@ -6,3 +6,4 @@ class InvoicesConfig(AppConfig):
     name = 'saleor_extensions.invoices'
     verbose_name = 'Invoices'
 
+

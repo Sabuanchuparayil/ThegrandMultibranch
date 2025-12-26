@@ -161,3 +161,4 @@ print("   2. Create test data in Django admin")
 print("   3. Test with actual GraphQL client or playground")
 print("   4. Integrate with Saleor schema (optional)")
 
+

@@ -113,3 +113,4 @@ print("   1. If all tests passed, the schema is ready")
 print("   2. Extend Saleor's schema in saleor/graphql/schema.py")
 print("   3. Test with GraphQL queries")
 
+

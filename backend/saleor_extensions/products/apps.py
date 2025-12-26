@@ -6,3 +6,4 @@ class ProductsConfig(AppConfig):
     name = 'saleor_extensions.products'
     verbose_name = 'Products'
 
+

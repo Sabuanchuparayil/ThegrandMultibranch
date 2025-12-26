@@ -6,3 +6,4 @@ class CurrencyConfig(AppConfig):
     name = 'saleor_extensions.currency'
     verbose_name = 'Currency'
 
+

@@ -6,3 +6,4 @@ class NotificationsConfig(AppConfig):
     name = 'saleor_extensions.notifications'
     verbose_name = 'Notifications'
 
+

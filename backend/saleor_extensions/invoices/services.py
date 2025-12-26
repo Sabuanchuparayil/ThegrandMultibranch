@@ -85,3 +85,4 @@ class InvoiceGenerator:
         # Implementation using notification service
         return True
 
+

@@ -6,3 +6,4 @@ class AuditConfig(AppConfig):
     name = 'saleor_extensions.audit'
     verbose_name = 'Audit'
 
+

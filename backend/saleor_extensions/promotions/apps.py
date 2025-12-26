@@ -6,3 +6,4 @@ class PromotionsConfig(AppConfig):
     name = 'saleor_extensions.promotions'
     verbose_name = 'Promotions'
 
+

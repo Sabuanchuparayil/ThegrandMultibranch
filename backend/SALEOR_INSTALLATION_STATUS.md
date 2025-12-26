@@ -143,3 +143,4 @@ Then follow Step 2-6 above, or run the installation script.
 **Status**: Waiting for Python 3.12 installation  
 **Next Step**: `brew install python@3.12`
 
+

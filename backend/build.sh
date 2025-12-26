@@ -18,3 +18,4 @@ pip install git+https://github.com/saleor/saleor.git
 
 echo "=== Build complete ==="
 
+

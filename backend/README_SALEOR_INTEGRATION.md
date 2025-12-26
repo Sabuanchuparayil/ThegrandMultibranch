@@ -141,3 +141,4 @@ python manage.py shell < create_initial_data.py
 
 **Status**: Ready for Saleor Integration 🚀
 
+

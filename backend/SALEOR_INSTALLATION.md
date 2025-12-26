@@ -129,3 +129,4 @@ Since you're integrating custom extensions, I recommend:
 5. ✅ Run migrations
 6. ✅ Test integration
 
+

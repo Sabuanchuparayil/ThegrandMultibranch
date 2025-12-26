@@ -18,7 +18,6 @@ except ImportError:
 from saleor_extensions.orders.models import OrderBranchAssignment, ManualOrder
 from saleor_extensions.inventory.models import BranchInventory, StockMovement
 from saleor_extensions.branches.models import Branch
-from saleor_extensions.regions.models import Region
 from saleor_extensions.currency.models import Currency
 
 
@@ -541,12 +540,13 @@ class DashboardQueries(graphene.ObjectType):
         else:
             start_date_obj = end_date_obj - timedelta(days=30)
         
-        regions = Region.objects.filter(is_active=True)
+        # Get revenue data by branch instead of region
+        branches = Branch.objects.filter(is_active=True)
         revenue_data = []
         
-        for region in regions:
+        for branch in branches:
             orders_qs = OrderBranchAssignment.objects.filter(
-                region_id=region.id,
+                branch=branch,
                 created_at__gte=start_date_obj,
                 created_at__lte=end_date_obj
             )
@@ -561,7 +561,7 @@ class DashboardQueries(graphene.ObjectType):
             orders_count = orders_qs.count()
             
             revenue_data.append(BranchPerformanceType(
-                branch_id=str(region.id),
+                branch_id=str(branch.id),
                 branch_name=region.name,
                 sales=sales,
                 orders=orders_count,

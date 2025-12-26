@@ -26,3 +26,4 @@ echo "Alternative: If Railway CLI doesn't work,"
 echo "use Railway Dashboard method (see RUN_MIGRATIONS_NOW.md)"
 echo "=========================================="
 
+

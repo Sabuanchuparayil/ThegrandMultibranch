@@ -240,3 +240,4 @@ class NotificationTrigger(models.Model):
     def __str__(self):
         return f"{self.get_trigger_event_display()}"
 
+

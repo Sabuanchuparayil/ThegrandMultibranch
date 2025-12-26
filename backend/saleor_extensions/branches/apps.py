@@ -6,3 +6,4 @@ class BranchesConfig(AppConfig):
     name = 'saleor_extensions.branches'
     verbose_name = 'Branches'
 
+

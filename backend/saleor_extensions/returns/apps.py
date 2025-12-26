@@ -6,3 +6,4 @@ class ReturnsConfig(AppConfig):
     name = 'saleor_extensions.returns'
     verbose_name = 'Returns'
 
+

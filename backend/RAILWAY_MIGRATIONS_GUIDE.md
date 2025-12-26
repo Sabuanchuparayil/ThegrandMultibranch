@@ -173,3 +173,4 @@ Once migrations are complete:
 - **Backups**: Railway provides automatic backups on paid plans
 - **Connection**: `DATABASE_URL` is automatically set when PostgreSQL service is connected
 
+

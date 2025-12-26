@@ -6,3 +6,4 @@ class PricingConfig(AppConfig):
     name = 'saleor_extensions.pricing'
     verbose_name = 'Pricing'
 
+

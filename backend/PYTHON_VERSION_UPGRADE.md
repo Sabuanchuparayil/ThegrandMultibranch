@@ -136,3 +136,4 @@ Once Python 3.12 is installed and Saleor is installed:
 - **pyenv (Python Version Manager)**: https://github.com/pyenv/pyenv
 - **Saleor Installation Guide**: https://docs.saleor.io/docs/3.x/developer/installation
 
+

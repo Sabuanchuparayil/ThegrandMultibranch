@@ -74,3 +74,4 @@ class ManualOrderItemAdmin(admin.ModelAdmin):
     search_fields = ('product_name', 'product_id', 'order__order_number')
     readonly_fields = ('created_at',)
 
+

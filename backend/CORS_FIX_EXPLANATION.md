@@ -87,3 +87,4 @@ CORS_ALLOW_CREDENTIALS = True  # Allow cookies/auth headers
 - `backend/grandgold_settings.py` - CORS configuration
 - `backend/requirements.txt` - django-cors-headers dependency
 
+

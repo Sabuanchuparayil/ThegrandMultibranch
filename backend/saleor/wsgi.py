@@ -16,3 +16,4 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'saleor.settings.base')
 
 application = get_wsgi_application()
 
+

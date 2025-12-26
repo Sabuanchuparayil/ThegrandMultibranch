@@ -138,3 +138,4 @@ Just follow the guides and checklist, and you'll have everything connected and w
 **Last Updated**: $(date)
 **Status**: Ready for Saleor Integration
 
+

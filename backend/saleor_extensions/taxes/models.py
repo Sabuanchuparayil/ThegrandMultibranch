@@ -1,22 +1,17 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
-from saleor_extensions.regions.models import Region
 
 
 class TaxRule(models.Model):
-    """Tax rules per region"""
+    """Tax rules"""
     TAX_TYPE_CHOICES = [
         ('VAT', 'VAT (Value Added Tax)'),
         ('GST', 'GST (Goods and Services Tax)'),
         ('SALES_TAX', 'Sales Tax'),
     ]
     
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='tax_rules'
-    )
+    country = models.CharField(max_length=100, default='')
     name = models.CharField(max_length=200)
     tax_type = models.CharField(max_length=20, choices=TAX_TYPE_CHOICES)
     rate = models.DecimalField(
@@ -38,15 +33,15 @@ class TaxRule(models.Model):
         db_table = 'tax_rules'
         verbose_name = 'Tax Rule'
         verbose_name_plural = 'Tax Rules'
-        ordering = ['region', 'tax_type', 'rate']
+        ordering = ['country', 'tax_type', 'rate']
         indexes = [
-            models.Index(fields=['region', 'tax_type', 'is_active']),
-            models.Index(fields=['region', 'state']),
+            models.Index(fields=['country', 'tax_type', 'is_active']),
+            models.Index(fields=['country', 'state']),
         ]
     
     def __str__(self):
         state_str = f" ({self.state})" if self.state else ""
-        return f"{self.region.code}{state_str} - {self.tax_type}: {self.rate}%"
+        return f"{self.country}{state_str} - {self.tax_type}: {self.rate}%"
 
 
 class TaxExemption(models.Model):
@@ -97,4 +92,5 @@ class TaxExemption(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.region.code}) - {self.exemption_type}"
+
 

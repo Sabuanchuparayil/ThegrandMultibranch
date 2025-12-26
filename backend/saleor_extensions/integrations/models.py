@@ -1,5 +1,4 @@
 from django.db import models
-from saleor_extensions.regions.models import Region
 
 
 class IntegrationConfig(models.Model):
@@ -23,15 +22,6 @@ class IntegrationConfig(models.Model):
     api_key = models.CharField(max_length=500, blank=True)
     api_secret = models.CharField(max_length=500, blank=True)
     configuration = models.JSONField(default=dict, blank=True)
-    
-    # Region
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='integrations'
-    )
     
     # Status
     is_active = models.BooleanField(default=True)
@@ -135,4 +125,5 @@ class APILog(models.Model):
     def __str__(self):
         status = "Success" if self.is_success else "Failed"
         return f"{self.integration.provider_name} - {self.request_method} {self.endpoint} ({status})"
+
 

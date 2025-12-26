@@ -32,3 +32,4 @@ class BranchAdmin(admin.ModelAdmin):
         }),
     )
 
+

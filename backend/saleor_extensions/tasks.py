@@ -202,3 +202,4 @@ def update_scheduled_report_next_run():
     except Exception as e:
         return f"Error updating scheduled reports: {str(e)}"
 
+

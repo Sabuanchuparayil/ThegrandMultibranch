@@ -6,3 +6,4 @@ class ReportsConfig(AppConfig):
     name = 'saleor_extensions.reports'
     verbose_name = 'Reports'
 
+

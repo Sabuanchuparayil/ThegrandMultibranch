@@ -137,3 +137,4 @@ class NotificationTriggerAdmin(admin.ModelAdmin):
         }),
     )
 
+

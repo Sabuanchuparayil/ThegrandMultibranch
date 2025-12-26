@@ -6,3 +6,4 @@ class CmsConfig(AppConfig):
     name = 'saleor_extensions.cms'
     verbose_name = 'CMS'
 
+

@@ -59,3 +59,4 @@ echo "2. Create saleor/settings/local.py for local settings"
 echo "3. Update models with ForeignKeys"
 echo "4. Run migrations"
 
+

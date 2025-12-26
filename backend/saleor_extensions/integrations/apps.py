@@ -6,3 +6,4 @@ class IntegrationsConfig(AppConfig):
     name = 'saleor_extensions.integrations'
     verbose_name = 'Integrations'
 
+

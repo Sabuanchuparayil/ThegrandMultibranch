@@ -84,3 +84,4 @@ class ProductVariantAttributeAdmin(admin.ModelAdmin):
         }),
     )
 
+

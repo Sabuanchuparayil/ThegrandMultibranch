@@ -6,3 +6,4 @@ class OrdersConfig(AppConfig):
     name = 'saleor_extensions.orders'
     verbose_name = 'Orders'
 
+

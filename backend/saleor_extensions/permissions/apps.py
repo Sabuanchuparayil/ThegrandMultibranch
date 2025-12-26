@@ -6,3 +6,4 @@ class PermissionsConfig(AppConfig):
     name = 'saleor_extensions.permissions'
     verbose_name = 'Permissions'
 
+

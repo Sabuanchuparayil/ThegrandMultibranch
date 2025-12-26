@@ -112,3 +112,4 @@ class CurrencyConverter:
         except Currency.DoesNotExist:
             return f"{amount:,.2f}"
 
+

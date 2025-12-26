@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
-from saleor_extensions.regions.models import Region
 from saleor_extensions.branches.models import Branch
 
 

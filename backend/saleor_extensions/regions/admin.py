@@ -9,3 +9,4 @@ class RegionAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
     readonly_fields = ('created_at', 'updated_at')
 
+

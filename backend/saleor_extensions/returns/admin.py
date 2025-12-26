@@ -80,3 +80,4 @@ class CreditNoteAdmin(admin.ModelAdmin):
         }),
     )
 
+

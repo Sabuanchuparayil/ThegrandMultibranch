@@ -1,12 +1,11 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
-from saleor_extensions.regions.models import Region
 from saleor_extensions.currency.models import Currency
 
 
 class PaymentGateway(models.Model):
-    """Payment gateway configurations per region"""
+    """Payment gateway configurations"""
     GATEWAY_TYPE_CHOICES = [
         ('STRIPE', 'Stripe'),
         ('PAYPAL', 'PayPal'),
@@ -21,11 +20,6 @@ class PaymentGateway(models.Model):
     
     name = models.CharField(max_length=100)
     gateway_type = models.CharField(max_length=50, choices=GATEWAY_TYPE_CHOICES)
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='payment_gateways'
-    )
     
     # Credentials (encrypted in production)
     api_key = models.CharField(max_length=500, blank=True)
@@ -58,14 +52,14 @@ class PaymentGateway(models.Model):
         db_table = 'payment_gateways'
         verbose_name = 'Payment Gateway'
         verbose_name_plural = 'Payment Gateways'
-        unique_together = [['gateway_type', 'region']]
+        unique_together = [['gateway_type']]
         indexes = [
-            models.Index(fields=['region', 'is_active']),
+            models.Index(fields=['is_active']),
             models.Index(fields=['gateway_type']),
         ]
     
     def __str__(self):
-        return f"{self.get_gateway_type_display()} - {self.region.code}"
+        return f"{self.get_gateway_type_display()} - {self.name}"
 
 
 class PaymentTransaction(models.Model):

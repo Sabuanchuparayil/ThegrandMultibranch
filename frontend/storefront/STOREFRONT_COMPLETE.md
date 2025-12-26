@@ -234,3 +234,4 @@ All pages are prepared for GraphQL queries:
 
 The storefront is fully implemented with product catalog, checkout, and account management features.
 
+

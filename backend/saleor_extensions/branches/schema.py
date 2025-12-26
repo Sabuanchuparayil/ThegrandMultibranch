@@ -8,7 +8,6 @@ import os
 import time
 
 from saleor_extensions.branches.models import Branch
-from saleor_extensions.regions.models import Region
 
 LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".cursor", "debug.log")
 
@@ -98,26 +97,12 @@ except ImportError:
 # Object Types
 # ============================================================================
 
-class RegionType(graphene.ObjectType):
-    """Region GraphQL Type (no graphene-django dependency)."""
-
-    id = graphene.ID()
-    code = graphene.String()
-    name = graphene.String()
-    default_currency = graphene.String()
-    tax_rate = Decimal()
-    timezone = graphene.String()
-    locale = graphene.String()
-    is_active = graphene.Boolean()
-
-
 class BranchType(graphene.ObjectType):
     """Branch GraphQL Type (no graphene-django dependency)."""
 
     id = graphene.ID()
     name = graphene.String()
     code = graphene.String()
-    region = graphene.Field(RegionType)
     address_line_1 = graphene.String()
     address_line_2 = graphene.String()
     city = graphene.String()
@@ -143,8 +128,6 @@ class BranchCreateInput(graphene.InputObjectType):
     """Input for creating a branch (uses camelCase for GraphQL convention)"""
     name = graphene.String(required=True)
     code = graphene.String(required=True)
-    region_id = graphene.ID(required=True)  # Keep snake_case for backward compatibility
-    regionId = graphene.ID()  # Also accept camelCase
     address_line_1 = graphene.String()  # Keep for backward compatibility
     addressLine1 = graphene.String(required=True)  # Primary camelCase field
     address_line_2 = graphene.String()  # Keep for backward compatibility
@@ -172,8 +155,6 @@ class BranchUpdateInput(graphene.InputObjectType):
     """Input for updating a branch (uses camelCase for GraphQL convention)"""
     name = graphene.String()
     code = graphene.String()
-    region_id = graphene.ID()  # Keep for backward compatibility
-    regionId = graphene.ID()  # Primary camelCase field
     address_line_1 = graphene.String()  # Keep for backward compatibility
     addressLine1 = graphene.String()  # Primary camelCase field
     address_line_2 = graphene.String()  # Keep for backward compatibility
@@ -206,9 +187,8 @@ class BranchQueries(graphene.ObjectType):
     
     branches = graphene.List(
         BranchType,
-        region_code=graphene.String(),
         is_active=graphene.Boolean(),
-        description="Get all branches, optionally filtered by region or status"
+        description="Get all branches, optionally filtered by status"
     )
     
     branch = graphene.Field(
@@ -218,20 +198,17 @@ class BranchQueries(graphene.ObjectType):
         description="Get a specific branch by ID or code"
     )
     
-    def resolve_branches(self, info, region_code=None, is_active=None):
+    def resolve_branches(self, info, is_active=None):
         """Resolve branches query"""
         # #region agent log
         _agent_log(
             "branches/schema.py:resolve_branches:entry",
             "Resolve branches called",
-            {"hypothesisId": "H2", "region_code": region_code, "is_active": is_active},
+            {"hypothesisId": "H2", "is_active": is_active},
             "H2",
         )
         # #endregion
-        queryset = Branch.objects.select_related('region').all()
-        
-        if region_code:
-            queryset = queryset.filter(region__code=region_code)
+        queryset = Branch.objects.all()
         
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active)
@@ -250,12 +227,12 @@ class BranchQueries(graphene.ObjectType):
         """Resolve single branch query"""
         if id:
             try:
-                return Branch.objects.select_related('region').get(id=id)
+                return Branch.objects.get(id=id)
             except Branch.DoesNotExist:
                 return None
         elif code:
             try:
-                return Branch.objects.select_related('region').get(code=code)
+                return Branch.objects.get(code=code)
             except Branch.DoesNotExist:
                 return None
         return None
@@ -282,18 +259,6 @@ class BranchCreate(BaseMutation):
     def perform_mutation(cls, root, info, input):
         """Create a new branch"""
         try:
-            # Handle both camelCase and snake_case field names
-            # Convert region_id/regionId to integer if it's a string
-            region_id = getattr(input, 'regionId', None) or getattr(input, 'region_id', None)
-            if region_id is None:
-                raise ValidationError("regionId is required")
-            if isinstance(region_id, str):
-                # Try to extract numeric ID from string
-                try:
-                    region_id = int(region_id)
-                except ValueError:
-                    raise ValidationError(f"Invalid regionId format: '{region_id}'. Must be a valid integer.")
-            
             # Get field values, preferring camelCase but falling back to snake_case
             address_line_1 = getattr(input, 'addressLine1', None) or getattr(input, 'address_line_1', None)
             address_line_2 = getattr(input, 'addressLine2', None) or getattr(input, 'address_line_2', None) or ''
@@ -307,7 +272,6 @@ class BranchCreate(BaseMutation):
             branch = Branch.objects.create(
                 name=input.name,
                 code=input.code,
-                region_id=region_id,
                 address_line_1=address_line_1,
                 address_line_2=address_line_2,
                 city=input.city,
@@ -327,7 +291,7 @@ class BranchCreate(BaseMutation):
             _agent_log(
                 "branches/schema.py:BranchCreate:success",
                 "Branch created successfully",
-                {"hypothesisId": "H3", "branch_id": branch.id, "region_id": region_id},
+                {"hypothesisId": "H3", "branch_id": branch.id},
                 "H3",
             )
             # #endregion
@@ -380,15 +344,6 @@ class BranchUpdate(BaseMutation):
                 branch.name = input.name
             if hasattr(input, 'code') and input.code is not None:
                 branch.code = input.code
-            # Handle region_id/regionId
-            region_id = getattr(input, 'regionId', None) or getattr(input, 'region_id', None)
-            if region_id is not None:
-                if isinstance(region_id, str):
-                    try:
-                        region_id = int(region_id)
-                    except ValueError:
-                        raise ValidationError(f"Invalid regionId format: '{region_id}'. Must be a valid integer.")
-                branch.region_id = region_id
             # Handle address fields
             address_line_1 = getattr(input, 'addressLine1', None) or getattr(input, 'address_line_1', None)
             if address_line_1 is not None:

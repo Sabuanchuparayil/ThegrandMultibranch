@@ -6,3 +6,4 @@ class PaymentsConfig(AppConfig):
     name = 'saleor_extensions.payments'
     verbose_name = 'Payments'
 
+

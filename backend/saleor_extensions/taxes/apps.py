@@ -6,3 +6,4 @@ class TaxesConfig(AppConfig):
     name = 'saleor_extensions.taxes'
     verbose_name = 'Taxes'
 
+

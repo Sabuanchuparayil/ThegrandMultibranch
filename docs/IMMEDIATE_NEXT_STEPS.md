@@ -169,3 +169,4 @@ python manage.py migrate
 
 Good luck! The foundation is solid - now it's time to connect it to Saleor! 🚀
 
+

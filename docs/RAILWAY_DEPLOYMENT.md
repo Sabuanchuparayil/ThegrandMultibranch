@@ -252,3 +252,4 @@ To scale services:
 3. Increase CPU/Memory as needed
 4. Railway will automatically restart the service with new resources
 
+

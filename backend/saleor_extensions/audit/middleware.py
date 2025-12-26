@@ -67,3 +67,4 @@ class AuditLogMiddleware(MiddlewareMixin):
             region_code=region_code or '',
         )
 
+
