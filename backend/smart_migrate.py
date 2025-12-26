@@ -342,6 +342,58 @@ def ensure_saleor_productvariant_columns():
         )
         return False
 
+def ensure_saleor_product_columns():
+    """
+    Saleor's Product model expects metadata fields on `product_product`.
+    If the DB is behind, product queries can fail with:
+      column product_product.private_metadata does not exist
+    """
+    try:
+        if not check_table_exists("product_product"):
+            _log(
+                "smart_migrate.py:ensure_product_columns",
+                "product_product table missing; skipping",
+                {},
+                "H15",
+            )
+            return False
+
+        changes = []
+        with connection.cursor() as cursor:
+            if not check_column_exists("product_product", "metadata"):
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;"
+                )
+                changes.append("metadata")
+
+            if not check_column_exists("product_product", "private_metadata"):
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS private_metadata jsonb NOT NULL DEFAULT '{}'::jsonb;"
+                )
+                changes.append("private_metadata")
+
+            if not check_column_exists("product_product", "external_reference"):
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS external_reference varchar(250);"
+                )
+                changes.append("external_reference")
+
+        _log(
+            "smart_migrate.py:ensure_product_columns",
+            "Ensured product_product columns",
+            {"added": changes},
+            "H15",
+        )
+        return True
+    except Exception as e:
+        _log(
+            "smart_migrate.py:ensure_product_columns",
+            "Failed ensuring product_product columns",
+            {"error": str(e), "error_type": type(e).__name__},
+            "H15",
+        )
+        return False
+
 def main():
     print("=" * 80)
     print("SMART MIGRATION SCRIPT")
@@ -385,6 +437,7 @@ def main():
             migrate_custom_apps()
             seed_default_regions()
             ensure_saleor_productvariant_columns()
+            ensure_saleor_product_columns()
             ensure_saleor_channel_tables()
             
             print("\n" + "=" * 80)
@@ -404,6 +457,7 @@ def main():
     
     seed_default_regions()
     ensure_saleor_productvariant_columns()
+    ensure_saleor_product_columns()
     ensure_saleor_channel_tables()
     missing = _verify_custom_tables()
     saleor_missing = _verify_required_saleor_tables()
