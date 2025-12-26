@@ -116,11 +116,28 @@ def _graphql_entrypoint(request):
             def __init__(self, request):
                 self.request = request
                 self.app = getattr(request, "app", None)
-                try:
-                    self.user = getattr(request, "user")
-                except Exception:
-                    from django.contrib.auth.models import AnonymousUser
-                    self.user = AnonymousUser()
+                user = getattr(request, "user", None)
+                if user is None:
+                    class _Anonymous:
+                        is_authenticated = False
+                        is_anonymous = True
+
+                        def __getattr__(self, item):
+                            raise AttributeError(item)
+
+                    self.user = _Anonymous()
+                else:
+                    self.user = user
+
+                # #region agent log
+                _log(
+                    "grandgold_urls.py:GraphQLContext",
+                    "GraphQL context initialized",
+                    {"hypothesisId": "H1", "has_user": user is not None},
+                    "H1",
+                    run_id="debug-run1",
+                )
+                # #endregion
 
             def __getattr__(self, item):
                 return getattr(self.request, item)
