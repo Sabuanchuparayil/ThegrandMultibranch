@@ -53,17 +53,25 @@ def _mock_graphql_imports():
     
     mock_filters_module.ProductFilterInput = MockProductFilterInput
     
-    # Insert the mock into sys.modules BEFORE any imports happen
+    # Force the mock into sys.modules, replacing any partially initialized module
     # This must happen before django.setup() loads migrations
+    if 'saleor.graphql.product.filters.product' in sys.modules:
+        # If module is partially initialized, replace it with our mock
+        del sys.modules['saleor.graphql.product.filters.product']
     sys.modules['saleor.graphql.product.filters.product'] = mock_filters_module
     
-    # Also mock the parent modules to prevent import chain failures
+    # Also ensure parent modules exist to prevent import chain failures
     for parent_name in [
         'saleor.graphql.product.filters',
         'saleor.graphql.product',
         'saleor.graphql',
     ]:
         if parent_name not in sys.modules:
+            parent_module = ModuleType(parent_name)
+            sys.modules[parent_name] = parent_module
+        # If parent is partially initialized, replace it
+        elif hasattr(sys.modules[parent_name], '__file__') and 'partially initialized' in str(getattr(sys.modules[parent_name], '__doc__', '')):
+            del sys.modules[parent_name]
             parent_module = ModuleType(parent_name)
             sys.modules[parent_name] = parent_module
     
@@ -76,15 +84,42 @@ def _mock_graphql_imports():
         try:
             return _original_import_module(name, package)
         except (ImportError, AttributeError) as e:
-            if 'ProductFilterInput' in str(e) or 'partially initialized' in str(e):
+            error_str = str(e)
+            if 'ProductFilterInput' in error_str or 'partially initialized' in error_str:
                 if name == 'saleor.graphql.product.filters.product' or (
                     name.startswith('saleor.graphql.product.filters')
                 ):
+                    # Force mock into sys.modules and return it
+                    sys.modules[name] = mock_filters_module
                     return mock_filters_module
             raise
     
     # Patch importlib.import_module
     importlib.import_module = _safe_import_module
+    
+    # Also patch __import__ at builtin level for maximum coverage
+    try:
+        import builtins
+        _original_import = builtins.__import__
+        
+        def _patched_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == 'saleor.graphql.product.filters.product' or (
+                'saleor.graphql.product.filters.product' in str(fromlist)
+            ):
+                if 'ProductFilterInput' in fromlist:
+                    return mock_filters_module
+            try:
+                return _original_import(name, globals, locals, fromlist, level)
+            except (ImportError, AttributeError) as e:
+                error_str = str(e)
+                if 'ProductFilterInput' in error_str or 'partially initialized' in error_str:
+                    if name == 'saleor.graphql.product.filters.product':
+                        return mock_filters_module
+                raise
+        
+        builtins.__import__ = _patched_import
+    except Exception:
+        pass  # If we can't patch builtins, continue with importlib patch
 
 _mock_graphql_imports()
 
@@ -792,6 +827,9 @@ def main():
     print("\n" + "=" * 80)
     print("RUNNING ALL MIGRATIONS")
     print("=" * 80)
+    
+    # Re-apply GraphQL mock before migrations (in case it was cleared)
+    _mock_graphql_imports()
     
     # #region agent log
     _log(
