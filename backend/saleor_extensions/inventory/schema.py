@@ -4,6 +4,7 @@ GraphQL API for Branch Inventory Operations and Stock Management
 import json
 import os
 import time
+from types import SimpleNamespace
 
 import graphene
 from django.core.exceptions import ValidationError
@@ -184,6 +185,45 @@ class BranchInventoryType(graphene.ObjectType):
     def resolve_is_low_stock(self, info):
         return getattr(self, "is_low_stock", None)
 
+    def resolve_product_variant(self, info):
+        """
+        Fetch minimal ProductVariant fields without selecting all Saleor columns.
+        This prevents runtime failures when Saleor core DB migrations are behind code.
+        """
+        try:
+            from saleor.product.models import Product, ProductVariant
+
+            variant = (
+                ProductVariant.objects.order_by()
+                .only("id", "name", "sku", "product_id")
+                .get(id=self.product_variant_id)
+            )
+            product_obj = None
+            try:
+                product_obj = (
+                    Product.objects.order_by().only("id", "name").get(id=variant.product_id)
+                )
+                product = SimpleNamespace(id=str(product_obj.id), name=getattr(product_obj, "name", None))
+            except Exception:
+                product = None
+
+            return SimpleNamespace(
+                id=str(variant.id),
+                name=getattr(variant, "name", None),
+                sku=getattr(variant, "sku", None),
+                product=product,
+            )
+        except Exception as e:
+            # #region agent log
+            _inventory_log(
+                "inventory/schema.py:BranchInventoryType:resolve_product_variant:error",
+                "Failed to resolve product_variant (returning null)",
+                {"hypothesisId": "H11", "error": str(e), "error_type": type(e).__name__},
+                "H11",
+            )
+            # #endregion
+            return None
+
 
 class StockMovementType(graphene.ObjectType):
     """Stock Movement GraphQL Type (no graphene-django dependency)."""
@@ -349,7 +389,10 @@ class InventoryQueries(graphene.ObjectType):
         # #endregion
 
         try:
-            queryset = BranchInventory.objects.select_related("branch", "product_variant").all()
+            # IMPORTANT: do NOT select_related("product_variant") here.
+            # Saleor's ProductVariant model selects many columns; if Saleor core migrations are behind,
+            # selecting all columns can fail (e.g. missing external_reference/private_metadata/etc).
+            queryset = BranchInventory.objects.select_related("branch").all()
         except Exception as e:
             # If migrations haven't run yet in the target environment, the table may not exist.
             # Return empty list so the UI can load; the migrations system should create the table shortly after.
