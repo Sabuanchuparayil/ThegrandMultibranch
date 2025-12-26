@@ -191,24 +191,23 @@ if os.environ.get('DATABASE_URL'):
                             print(f"STDOUT: {result.stdout[:500]}")
             except Exception as e:
                 print(f"⚠️  Could not run product column fix: {e}")
-        
-        if _lock_fd is not None:
-        # Use smart_migrate.py which handles problematic migrations gracefully
-        # Ensure both libmagic and libstdc++ are discoverable for optional deps (e.g. grpc).
-        shell_cmd = (
-            "LIBMAGIC_DIR=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
-            "LIBSTDCXX_DIR=$(find /nix/store -name libstdc++.so.6 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
-            "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIBMAGIC_DIR:+:$LIBMAGIC_DIR}${LIBSTDCXX_DIR:+:$LIBSTDCXX_DIR}; "
-            f"cd {backend_dir} && "
-            f"{python_cmd} smart_migrate.py 2>&1"
-        )
-            
-        result = subprocess.run(
+
+            # Use smart_migrate.py which handles problematic migrations gracefully
+            # Ensure both libmagic and libstdc++ are discoverable for optional deps (e.g. grpc).
+            shell_cmd = (
+                "LIBMAGIC_DIR=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                "LIBSTDCXX_DIR=$(find /nix/store -name libstdc++.so.6 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${LIBMAGIC_DIR:+:$LIBMAGIC_DIR}${LIBSTDCXX_DIR:+:$LIBSTDCXX_DIR}; "
+                f"cd {backend_dir} && "
+                f"{python_cmd} smart_migrate.py 2>&1"
+            )
+
+            result = subprocess.run(
                 ['/bin/bash', '-c', shell_cmd],
                 capture_output=True,
                 text=True,
-            timeout=600,  # Saleor migrations can take several minutes on first boot
-                env=subprocess_env
+                timeout=600,  # Saleor migrations can take several minutes on first boot
+                env=subprocess_env,
             )
             if result.returncode == 0:
                 print("✅ Migrations checked/run on startup (via subprocess)")
