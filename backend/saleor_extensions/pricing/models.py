@@ -102,7 +102,7 @@ class BranchPricingOverride(models.Model):
     currency = models.ForeignKey(
         Currency,
         on_delete=models.PROTECT,
-        related_name='pricing_overrides'
+        related_name='branch_pricing_overrides'
     )
     override_making_charge = models.DecimalField(
         max_digits=20,
@@ -147,7 +147,7 @@ class PricingOverride(models.Model):
     currency = models.ForeignKey(
         Currency,
         on_delete=models.PROTECT,
-        related_name='pricing_overrides'
+        related_name='product_pricing_overrides'
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
