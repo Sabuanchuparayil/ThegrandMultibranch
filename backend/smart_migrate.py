@@ -19,6 +19,52 @@ from django.core.management import call_command
 from django.db import connection, transaction
 from django.db.utils import OperationalError, ProgrammingError
 
+def patch_create_permissions_ignore_duplicates():
+    """
+    Some environments can end up partially migrated, and post_migrate permission creation can crash with:
+      IntegrityError: duplicate key value violates unique constraint auth_permission_content_type_id_codename_..._uniq
+
+    This should be safe to ignore (permission already exists) and should NOT block schema migrations.
+    """
+    try:
+        from django.contrib.auth import management as auth_management
+        from django.db import IntegrityError
+
+        orig = auth_management.create_permissions
+
+        def safe_create_permissions(*args, **kwargs):
+            try:
+                return orig(*args, **kwargs)
+            except IntegrityError as e:
+                msg = str(e)
+                if "auth_permission_content_type_id_codename" in msg and "already exists" in msg:
+                    print(f"⚠️  Ignoring duplicate permission IntegrityError: {msg}")
+                    _log(
+                        "smart_migrate.py:patch_create_permissions",
+                        "Ignored duplicate permission IntegrityError",
+                        {"error": msg},
+                        "H21",
+                    )
+                    return None
+                raise
+
+        auth_management.create_permissions = safe_create_permissions
+        _log(
+            "smart_migrate.py:patch_create_permissions",
+            "Patched create_permissions to ignore duplicate permission IntegrityError",
+            {},
+            "H21",
+        )
+        return True
+    except Exception as e:
+        _log(
+            "smart_migrate.py:patch_create_permissions",
+            "Failed patching create_permissions",
+            {"error": str(e), "error_type": type(e).__name__},
+            "H21",
+        )
+        return False
+
 def _log(location, message, data, hypothesis_id="H7"):
     try:
         log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cursor", "debug.log")
@@ -609,6 +655,9 @@ def main():
         print(f"❌ Database connection failed: {e}")
         _log("smart_migrate.py:db", "database connection failed", {"error": str(e), "error_type": type(e).__name__}, "H7")
         return 1
+
+    # Step 1a: Make post_migrate permission creation resilient so it can't block migrations.
+    patch_create_permissions_ignore_duplicates()
 
     # Step 1b: Ensure Postgres extensions commonly required by Saleor
     ensure_postgres_extensions()
