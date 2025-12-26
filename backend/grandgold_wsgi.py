@@ -153,7 +153,41 @@ if os.environ.get('DATABASE_URL'):
         
         if _lock_fd is not None:
             # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
-            # First, ensure ALL critical columns exist (comprehensive fix)
+            # FIRST: Ensure critical Saleor tables exist (e.g. product_productchannellisting)
+            # This fixes GraphQL 400 errors from missing tables
+            try:
+                ensure_tables_script = os.path.join(backend_dir, 'ensure_saleor_tables.py')
+                if os.path.exists(ensure_tables_script):
+                    print("----- Running ensure_saleor_tables.py -----")
+                    shell_cmd = (
+                        f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                        f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                        f"cd {backend_dir} && "
+                        f"{python_cmd} ensure_saleor_tables.py 2>&1"
+                    )
+                    result = subprocess.run(
+                        ['/bin/bash', '-c', shell_cmd],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        env=subprocess_env,
+                    )
+                    if result.returncode == 0:
+                        print("✅ ensure_saleor_tables.py completed successfully")
+                        if result.stdout:
+                            print(result.stdout)
+                    else:
+                        print(f"⚠️  ensure_saleor_tables.py had issues (exit code {result.returncode})")
+                        if result.stdout:
+                            print(f"STDOUT: {result.stdout}")
+                        if result.stderr:
+                            print(f"STDERR: {result.stderr}")
+            except subprocess.TimeoutExpired:
+                print("⚠️  ensure_saleor_tables.py timed out")
+            except Exception as e:
+                print(f"⚠️  Failed to run ensure_saleor_tables.py: {e}")
+            
+            # SECOND: Ensure ALL critical columns exist (comprehensive fix)
             # This fixes GraphQL query errors for missing columns
             try:
                 # Try comprehensive fix first, fallback to old fix if needed
