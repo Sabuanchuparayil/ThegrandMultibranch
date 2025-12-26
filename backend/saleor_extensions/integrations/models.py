@@ -40,7 +40,7 @@ class IntegrationConfig(models.Model):
         verbose_name_plural = 'Integration Configurations'
         indexes = [
             models.Index(fields=['integration_type', 'is_active']),
-            models.Index(fields=['provider_name', 'region']),
+            models.Index(fields=['provider_name']),
         ]
     
     def __str__(self):

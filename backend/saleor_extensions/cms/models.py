@@ -75,14 +75,8 @@ class Banner(models.Model):
     display_from = models.DateTimeField(null=True, blank=True)
     display_until = models.DateTimeField(null=True, blank=True)
     
-    # Region and branch
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='banners'
-    )
+    # Country and branch
+    country = models.CharField(max_length=100, blank=True, default='')
     branches = models.ManyToManyField(
         Branch,
         related_name='banners',
@@ -99,7 +93,7 @@ class Banner(models.Model):
         ordering = ['banner_type', 'position', '-created_at']
         indexes = [
             models.Index(fields=['banner_type', 'is_active', 'position']),
-            models.Index(fields=['region', 'is_active']),
+            models.Index(fields=['country', 'is_active']),
         ]
     
     def __str__(self):
@@ -131,14 +125,8 @@ class Widget(models.Model):
     position_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     
-    # Region and branch
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='widgets'
-    )
+    # Country and branch
+    country = models.CharField(max_length=100, blank=True, default='')
     branches = models.ManyToManyField(
         Branch,
         related_name='widgets',

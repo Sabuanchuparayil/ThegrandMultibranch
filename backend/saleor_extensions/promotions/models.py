@@ -57,14 +57,8 @@ class Promotion(models.Model):
         validators=[MinValueValidator(Decimal('0'))]
     )
     
-    # Region and branch
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='promotions',
-        null=True,
-        blank=True
-    )
+    # Country and branch
+    country = models.CharField(max_length=100, blank=True, default='')
     branches = models.ManyToManyField(
         Branch,
         related_name='promotions',
@@ -91,7 +85,7 @@ class Promotion(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['code']),
-            models.Index(fields=['region', 'is_active', 'valid_from', 'valid_until']),
+            models.Index(fields=['country', 'is_active', 'valid_from', 'valid_until']),
             models.Index(fields=['is_active', 'valid_from', 'valid_until']),
         ]
     
@@ -165,14 +159,8 @@ class Campaign(models.Model):
         blank=True
     )
     
-    # Region and branch
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='campaigns',
-        null=True,
-        blank=True
-    )
+    # Country and branch
+    country = models.CharField(max_length=100, blank=True, default='')
     branches = models.ManyToManyField(
         Branch,
         related_name='campaigns',
@@ -198,7 +186,7 @@ class Campaign(models.Model):
         ordering = ['-start_date']
         indexes = [
             models.Index(fields=['campaign_type', 'is_active', 'start_date', 'end_date']),
-            models.Index(fields=['region', 'is_active']),
+            models.Index(fields=['country', 'is_active']),
         ]
     
     def __str__(self):

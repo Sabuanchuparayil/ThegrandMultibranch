@@ -70,13 +70,7 @@ class ReportExecution(models.Model):
         blank=True,
         related_name='report_executions'
     )
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='report_executions'
-    )
+    country = models.CharField(max_length=100, blank=True, default='')
     
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
@@ -101,7 +95,7 @@ class ReportExecution(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['report_definition', 'status', 'created_at']),
-            models.Index(fields=['branch', 'region', 'created_at']),
+            models.Index(fields=['branch', 'country', 'created_at']),
             models.Index(fields=['status', 'created_at']),
         ]
     
@@ -137,12 +131,7 @@ class ScheduledReport(models.Model):
         null=True,
         blank=True
     )
-    default_region = models.ForeignKey(
-        Region,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
+    default_country = models.CharField(max_length=100, blank=True, default='')
     
     # Recipients
     email_recipients = models.JSONField(default=list)  # List of email addresses

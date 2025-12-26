@@ -130,13 +130,9 @@ class InvoiceItem(models.Model):
 
 
 class InvoiceTemplate(models.Model):
-    """Invoice templates for different regions"""
+    """Invoice templates for different countries"""
     name = models.CharField(max_length=200)
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='invoice_templates'
-    )
+    country = models.CharField(max_length=100, default='')
     
     # Template content (HTML)
     template_html = models.TextField()
