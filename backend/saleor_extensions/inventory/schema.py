@@ -1,8 +1,13 @@
 """
 GraphQL API for Branch Inventory Operations and Stock Management
 """
+import json
+import os
+import time
+
 import graphene
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from decimal import Decimal
 
 from saleor_extensions.inventory.models import (
@@ -12,6 +17,27 @@ from saleor_extensions.inventory.models import (
     LowStockAlert,
 )
 from saleor_extensions.branches.models import Branch
+
+LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".cursor", "debug.log")
+
+
+def _inventory_log(location, message, data, hypothesis_id):
+    try:
+        abs_path = os.path.abspath(LOG_PATH)
+        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+        entry = {
+            "sessionId": "debug-session",
+            "runId": "debug-run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open(abs_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
 
 # Try to import DateTime and Decimal from Saleor to avoid duplicate type errors
 try:
@@ -258,7 +284,9 @@ class InventoryQueries(graphene.ObjectType):
     # Get branch inventory by branch
     branch_inventory = graphene.List(
         BranchInventoryType,
-        branch_id=graphene.ID(required=True),
+        branch_id=graphene.ID(),
+        branchId=graphene.ID(),
+        search=graphene.String(),
         low_stock_only=graphene.Boolean(default_value=False),
         description="Get inventory for a specific branch"
     )
@@ -307,14 +335,44 @@ class InventoryQueries(graphene.ObjectType):
         description="Get low stock alerts"
     )
     
-    def resolve_branch_inventory(self, info, branch_id, low_stock_only=False):
+    def resolve_branch_inventory(self, info, branch_id=None, branchId=None, search=None, low_stock_only=False):
         """Get inventory for a branch"""
-        queryset = BranchInventory.objects.select_related(
-            'branch', 'product_variant'
-        ).filter(branch_id=branch_id)
+        merged_branch_id = branchId or branch_id
+
+        # #region agent log
+        _inventory_log(
+            "inventory/schema.py:resolve_branch_inventory:entry",
+            "Resolve branch inventory called",
+            {"hypothesisId": "H5", "branch_id": merged_branch_id, "search": search, "low_stock_only": low_stock_only},
+            "H5",
+        )
+        # #endregion
+
+        queryset = BranchInventory.objects.select_related("branch", "product_variant").all()
+        
+        if merged_branch_id:
+            queryset = queryset.filter(branch_id=merged_branch_id)
+        
+        if search:
+            queryset = queryset.filter(
+                Q(product_variant__name__icontains=search)
+                | Q(product_variant__sku__icontains=search)
+                | Q(branch__name__icontains=search)
+            )
         
         if low_stock_only:
             queryset = [item for item in queryset if item.is_low_stock]
+
+        result_count = queryset.count() if hasattr(queryset, "count") else len(queryset)
+
+        # #region agent log
+        _inventory_log(
+            "inventory/schema.py:resolve_branch_inventory:exit",
+            "Resolve branch inventory completed",
+            {"hypothesisId": "H5", "count": result_count},
+            "H5",
+        )
+        # #endregion
         
         return queryset
     
