@@ -114,6 +114,12 @@ def add_all_product_columns():
                 'nullable': True,
                 'description': 'Foreign key to product category (if not already exists)'
             },
+            {
+                'name': 'tax_class_id',
+                'type': 'integer',
+                'nullable': True,
+                'description': 'Foreign key to tax class (for tax calculation)'
+            },
             
             # ============================================================
             # Rating and review columns
