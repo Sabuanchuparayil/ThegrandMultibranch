@@ -175,6 +175,14 @@ except ImportError:
     _DASHBOARD_AVAILABLE = False
     DashboardQueries = graphene.ObjectType
 
+# Import core mutations (authentication)
+try:
+    from saleor_extensions.core.schema import CoreMutations
+    _CORE_AVAILABLE = True
+except ImportError:
+    _CORE_AVAILABLE = False
+    CoreMutations = graphene.ObjectType
+
 
 # Extend Query with custom queries
 if _SALEOR_AVAILABLE:
@@ -204,6 +212,8 @@ if _SALEOR_AVAILABLE:
     mutation_classes = [SaleorMutation, InventoryMutations]
     if _BRANCHES_AVAILABLE:
         mutation_classes.append(BranchMutations)
+    if _CORE_AVAILABLE:
+        mutation_classes.append(CoreMutations)
     # graphene.ObjectType is NOT needed - all classes already inherit from it
     
     try:
@@ -244,6 +254,8 @@ else:
     mutation_classes = [InventoryMutations]
     if _BRANCHES_AVAILABLE:
         mutation_classes.append(BranchMutations)
+    if _CORE_AVAILABLE:
+        mutation_classes.append(CoreMutations)
     # graphene.ObjectType is NOT needed - all classes already inherit from it
     
     try:

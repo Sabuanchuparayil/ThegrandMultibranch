@@ -43,6 +43,11 @@ const modules = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    window.location.href = '/login';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -50,6 +55,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">Grand Gold Admin</h1>
           <p className="text-sm text-gray-500 mt-1">Management System</p>
+        </div>
+        
+        {/* Logout Button */}
+        <div className="p-4 border-b border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            <svg
+              className="h-5 w-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            Logout
+          </button>
         </div>
         
         <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-120px)]">

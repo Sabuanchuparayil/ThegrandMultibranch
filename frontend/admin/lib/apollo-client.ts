@@ -84,8 +84,10 @@ if (typeof window !== 'undefined') {
 
 // Auth link to add authentication tokens
 const authLink = setContext((_, { headers }) => {
-  // Get the authentication token from local storage if it exists
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+  // Get the authentication token from local storage or environment variable
+  const token = typeof window !== 'undefined' 
+    ? localStorage.getItem('authToken') || process.env.NEXT_PUBLIC_AUTH_TOKEN
+    : null;
   
   return {
     headers: {
@@ -187,7 +189,10 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
       // Redirect to login or clear token
       if (typeof window !== 'undefined') {
         localStorage.removeItem('authToken');
-        window.location.href = '/login';
+        // Only redirect if not already on login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
   }

@@ -1,5 +1,26 @@
 import { gql } from '@apollo/client';
 
+// Authentication Mutations
+export const LOGIN = gql`
+  mutation Login($input: LoginInput!) {
+    login(input: $input) {
+      token
+      user {
+        id
+        email
+        firstName
+        lastName
+        isStaff
+        isActive
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 // Branch Mutations
 export const CREATE_BRANCH = gql`
   mutation CreateBranch($input: BranchCreateInput!) {
