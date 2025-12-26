@@ -29,25 +29,58 @@ const getGraphQLUrl = () => {
   // Priority: Environment variable > Railway backend URL > localhost
   // IMPORTANT: Set NEXT_PUBLIC_GRAPHQL_URL in Railway environment variables
   // to avoid needing to rebuild when backend URL changes
+  let url: string;
   if (process.env.NEXT_PUBLIC_GRAPHQL_URL) {
-    return process.env.NEXT_PUBLIC_GRAPHQL_URL;
-  }
-  
-  // Use Railway backend URL as fallback (updated to fb5f)
-  if (typeof window !== 'undefined') {
+    url = process.env.NEXT_PUBLIC_GRAPHQL_URL;
+  } else if (typeof window !== 'undefined') {
     // In browser, use the Railway backend URL
     // This will be used if NEXT_PUBLIC_GRAPHQL_URL is not set
-    return 'https://backend-production-fb5f.up.railway.app/graphql/';
+    url = 'https://backend-production-fb5f.up.railway.app/graphql/';
+  } else {
+    // Server-side fallback
+    url = 'http://localhost:8000/graphql/';
   }
   
-  // Server-side fallback
-  return 'http://localhost:8000/graphql/';
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    _debugLog(
+      'apollo-client.ts:getGraphQLUrl',
+      'GraphQL URL resolved',
+      {
+        url,
+        hasEnvVar: !!process.env.NEXT_PUBLIC_GRAPHQL_URL,
+        envVar: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'not set',
+        isBrowser: typeof window !== 'undefined',
+      },
+      'H1'
+    );
+  }
+  // #endregion
+  
+  return url;
 };
 
+const graphqlUrl = getGraphQLUrl();
 const httpLink = createHttpLink({
-  uri: getGraphQLUrl(),
+  uri: graphqlUrl,
   credentials: 'include', // Include cookies for CORS
 });
+
+// #region agent log
+// Log HTTP link configuration
+if (typeof window !== 'undefined') {
+  _debugLog(
+    'apollo-client.ts:httpLink',
+    'HTTP link created',
+    {
+      uri: graphqlUrl,
+      hasCredentials: true,
+      credentialsValue: 'include',
+    },
+    'H1'
+  );
+}
+// #endregion
 
 // Auth link to add authentication tokens
 const authLink = setContext((_, { headers }) => {
@@ -90,18 +123,49 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 
   if (networkError) {
     // #region agent log
+    // Capture comprehensive network error details
+    const networkErrorDetails = {
+      // Basic error info
+      name: networkError.name || 'NetworkError',
+      message: networkError.message || 'Network error',
+      
+      // Status code (if available)
+      statusCode: 'statusCode' in networkError ? (networkError as any).statusCode : null,
+      
+      // Operation context
+      operationName: operation?.operationName || 'unknown',
+      operationContext: operation?.getContext() || {},
+      
+      // URL information
+      urlFromContext: operation?.getContext()?.uri || null,
+      urlFromHttpLink: getGraphQLUrl(),
+      
+      // Error object properties
+      errorKeys: Object.keys(networkError),
+      errorString: String(networkError),
+      errorType: networkError.constructor?.name || typeof networkError,
+      
+      // Additional error properties
+      cause: 'cause' in networkError ? (networkError as any).cause : null,
+      stack: networkError.stack || null,
+      
+      // Request details
+      variablesKeys: Object.keys(operation?.variables || {}),
+      hasAuthToken: typeof window !== 'undefined' ? !!localStorage.getItem('authToken') : false,
+    };
+    
     _debugLog(
       'apollo-client.ts:errorLink:networkError',
-      'Apollo network error',
-      {
-        operationName: operation?.operationName,
-        url: operation?.getContext()?.uri || 'unknown',
-        statusCode: 'statusCode' in networkError ? (networkError as any).statusCode : 'unknown',
-        message: (networkError as any)?.message,
-        variablesKeys: Object.keys(operation?.variables || {}),
-      },
-      'H5'
+      'Apollo network error - detailed analysis',
+      networkErrorDetails,
+      'H1'
     );
+    
+    // Also log to console with full error object
+    console.error('[Network error - Full Details]:', {
+      error: networkError,
+      ...networkErrorDetails,
+    });
     // #endregion
 
     // Log network errors with full details for debugging
@@ -114,7 +178,8 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
       statusCode: errorStatus,
       operation: operation?.operationName,
       variables: operation?.variables,
-      url: operation?.getContext()?.uri || 'unknown',
+      url: networkErrorDetails.urlFromContext || networkErrorDetails.urlFromHttpLink || 'unknown',
+      fullError: networkError,
     });
     
     // Handle 401 unauthorized errors
