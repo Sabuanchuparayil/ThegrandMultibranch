@@ -87,23 +87,36 @@ if os.environ.get('DATABASE_URL'):
             python_cmd = sys.executable
         
         # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
-        # First, ensure critical columns exist (like search_document)
+        # First, ensure critical columns exist (like search_document, search_vector)
         # This fixes GraphQL query errors for missing columns
         try:
             fix_script = os.path.join(backend_dir, 'fix_product_search_document.py')
             if os.path.exists(fix_script):
                 print("----- Running fix_product_search_document.py -----")
+                # Set up libmagic path for subprocess
+                shell_cmd = (
+                    f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                    f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                    f"cd {backend_dir} && "
+                    f"{python_cmd} fix_product_search_document.py 2>&1"
+                )
                 result = subprocess.run(
-                    [python_cmd, fix_script],
+                    ['/bin/bash', '-c', shell_cmd],
                     capture_output=True,
                     text=True,
                     timeout=30,
-                    cwd=backend_dir
+                    env=subprocess_env
                 )
                 if result.returncode == 0:
-                    print("✅ Product column fix completed")
+                    print("✅ Product search columns fix completed")
+                    if result.stdout:
+                        print(result.stdout[-1000:])  # Show last 1000 chars of output
                 else:
-                    print(f"⚠️  Product column fix had issues: {result.stderr[:500]}")
+                    print(f"⚠️  Product column fix had issues (exit code {result.returncode})")
+                    if result.stderr:
+                        print(f"STDERR: {result.stderr[:500]}")
+                    if result.stdout:
+                        print(f"STDOUT: {result.stdout[:500]}")
         except Exception as e:
             print(f"⚠️  Could not run product column fix: {e}")
         
