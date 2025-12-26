@@ -55,7 +55,7 @@ def add_search_columns():
         changes = []
         
         # Define all columns that Saleor's GraphQL queries might need
-        # This includes search columns and timestamp columns
+        # This includes search columns, timestamp columns, and foreign key columns
         required_columns = [
             # Search-related columns
             {
@@ -81,6 +81,13 @@ def add_search_columns():
                 'default': 'DEFAULT CURRENT_TIMESTAMP',
                 'description': 'Product creation timestamp'
             },
+            # Foreign key columns (Saleor uses these for product relationships)
+            {
+                'name': 'default_variant_id',
+                'type': 'integer',
+                'nullable': True,
+                'description': 'Foreign key to default product variant'
+            },
         ]
         
         # Add each column if it doesn't exist
@@ -89,15 +96,17 @@ def add_search_columns():
                 print(f"🔧 Adding {col['name']} column ({col['description']})...")
                 with connection.cursor() as cursor:
                     default_clause = col.get('default', '')
+                    nullable = 'NULL' if col.get('nullable', False) else 'NOT NULL'
+                    
                     if default_clause:
                         cursor.execute(f"""
                             ALTER TABLE product_product 
-                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {default_clause};
+                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable} {default_clause};
                         """)
                     else:
                         cursor.execute(f"""
                             ALTER TABLE product_product 
-                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']};
+                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable};
                         """)
                 changes.append(col['name'])
                 print(f"✅ Successfully added {col['name']} column")
@@ -119,7 +128,7 @@ def add_search_columns():
 if __name__ == '__main__':
     print("=" * 80)
     print("FIXING MISSING PRODUCT COLUMNS")
-    print("Adding: search_document, search_vector, search_index_dirty, created_at")
+    print("Adding: search_document, search_vector, search_index_dirty, created_at, default_variant_id")
     print("=" * 80)
     
     with transaction.atomic():
