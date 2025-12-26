@@ -4,7 +4,7 @@ from saleor_extensions.currency.models import Currency
 
 
 class OrderBranchAssignment(models.Model):
-    """Extension to link orders with branches and regions"""
+    """Extension to link orders with branches"""
     # Link to Saleor Order model
     order = models.OneToOneField(
         'order.Order',
@@ -89,11 +89,7 @@ class ManualOrder(models.Model):
         on_delete=models.PROTECT,
         related_name='manual_orders'
     )
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.PROTECT,
-        related_name='manual_orders'
-    )
+    country = models.CharField(max_length=100, default='')
     currency = models.ForeignKey(
         Currency,
         on_delete=models.PROTECT,
