@@ -210,6 +210,13 @@ def ensure_saleor_productvariant_columns():
                 )
                 changes.append("private_metadata")
 
+            # external_reference (Saleor uses this for integrations; keep nullable to be safe)
+            if not check_column_exists("product_productvariant", "external_reference"):
+                cursor.execute(
+                    "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS external_reference varchar(250);"
+                )
+                changes.append("external_reference")
+
         _log(
             "smart_migrate.py:ensure_productvariant_columns",
             "Ensured product_productvariant columns",
