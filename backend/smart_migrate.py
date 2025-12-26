@@ -41,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def _mock_graphql_imports():
     """Mock GraphQL product filter imports to prevent circular import during migrations."""
     import sys
+    import importlib
     from types import ModuleType
     
     # Create a mock module for saleor.graphql.product.filters.product
@@ -52,13 +53,38 @@ def _mock_graphql_imports():
     
     mock_filters_module.ProductFilterInput = MockProductFilterInput
     
-    # Insert the mock into sys.modules before django.setup()
+    # Insert the mock into sys.modules BEFORE any imports happen
+    # This must happen before django.setup() loads migrations
     sys.modules['saleor.graphql.product.filters.product'] = mock_filters_module
     
-    # Also mock the parent module if needed
-    if 'saleor.graphql.product.filters' not in sys.modules:
-        mock_parent = ModuleType('saleor.graphql.product.filters')
-        sys.modules['saleor.graphql.product.filters'] = mock_parent
+    # Also mock the parent modules to prevent import chain failures
+    for parent_name in [
+        'saleor.graphql.product.filters',
+        'saleor.graphql.product',
+        'saleor.graphql',
+    ]:
+        if parent_name not in sys.modules:
+            parent_module = ModuleType(parent_name)
+            sys.modules[parent_name] = parent_module
+    
+    # Use importlib's import_module wrapper to catch ImportError and return mock
+    _original_import_module = importlib.import_module
+    
+    def _safe_import_module(name, package=None):
+        if name == 'saleor.graphql.product.filters.product':
+            return mock_filters_module
+        try:
+            return _original_import_module(name, package)
+        except (ImportError, AttributeError) as e:
+            if 'ProductFilterInput' in str(e) or 'partially initialized' in str(e):
+                if name == 'saleor.graphql.product.filters.product' or (
+                    name.startswith('saleor.graphql.product.filters')
+                ):
+                    return mock_filters_module
+            raise
+    
+    # Patch importlib.import_module
+    importlib.import_module = _safe_import_module
 
 _mock_graphql_imports()
 
