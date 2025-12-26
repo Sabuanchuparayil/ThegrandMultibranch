@@ -381,18 +381,16 @@ def ensure_saleor_product_columns():
 
             # Core product fields (if missing, add with safe defaults)
             if not check_column_exists("product_product", "slug"):
-                # Check if slug column exists with a different type first
-                cursor.execute("""
-                    SELECT data_type FROM information_schema.columns 
-                    WHERE table_schema = 'public' 
-                    AND table_name = 'product_product' 
-                    AND column_name = 'slug';
-                """)
-                if cursor.fetchone() is None:
-                    cursor.execute(
-                        "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS slug varchar(255);"
-                    )
-                    changes.append("slug")
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS slug varchar(255);"
+                )
+                changes.append("slug")
+
+            if not check_column_exists("product_product", "description_plaintext"):
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS description_plaintext text;"
+                )
+                changes.append("description_plaintext")
 
         _log(
             "smart_migrate.py:ensure_product_columns",
