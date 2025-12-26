@@ -344,9 +344,9 @@ def ensure_saleor_productvariant_columns():
 
 def ensure_saleor_product_columns():
     """
-    Saleor's Product model expects metadata fields on `product_product`.
-    If the DB is behind, product queries can fail with:
-      column product_product.private_metadata does not exist
+    Saleor's Product model expects certain columns on `product_product`.
+    If the DB is behind, product queries can fail with missing column errors.
+    This function adds missing columns that are commonly required.
     """
     try:
         if not check_table_exists("product_product"):
@@ -360,6 +360,7 @@ def ensure_saleor_product_columns():
 
         changes = []
         with connection.cursor() as cursor:
+            # Metadata columns (commonly missing)
             if not check_column_exists("product_product", "metadata"):
                 cursor.execute(
                     "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;"
@@ -377,6 +378,21 @@ def ensure_saleor_product_columns():
                     "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS external_reference varchar(250);"
                 )
                 changes.append("external_reference")
+
+            # Core product fields (if missing, add with safe defaults)
+            if not check_column_exists("product_product", "slug"):
+                # Check if slug column exists with a different type first
+                cursor.execute("""
+                    SELECT data_type FROM information_schema.columns 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'product_product' 
+                    AND column_name = 'slug';
+                """)
+                if cursor.fetchone() is None:
+                    cursor.execute(
+                        "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS slug varchar(255);"
+                    )
+                    changes.append("slug")
 
         _log(
             "smart_migrate.py:ensure_product_columns",
