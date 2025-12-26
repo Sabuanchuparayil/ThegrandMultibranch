@@ -37,7 +37,7 @@ def patch_create_permissions_ignore_duplicates():
                 return orig(*args, **kwargs)
             except IntegrityError as e:
                 msg = str(e)
-                if "auth_permission_content_type_id_codename" in msg and "already exists" in msg:
+                if "auth_permission_content_type_id_codename" in msg:
                     print(f"⚠️  Ignoring duplicate permission IntegrityError: {msg}")
                     _log(
                         "smart_migrate.py:patch_create_permissions",

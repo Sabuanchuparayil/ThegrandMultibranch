@@ -162,6 +162,13 @@ def add_all_product_columns():
             # Additional product fields
             # ============================================================
             {
+                'name': 'price',
+                'type': 'numeric(20, 2)',
+                'nullable': True,
+                'default': 'DEFAULT NULL',
+                'description': 'Legacy/compat product price column (some migrations expect this)'
+            },
+            {
                 'name': 'slug',
                 'type': 'varchar(255)',
                 'nullable': True,
