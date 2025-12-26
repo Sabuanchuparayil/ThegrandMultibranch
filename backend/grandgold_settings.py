@@ -596,6 +596,16 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
     'saleor_extensions.permissions',
 ]
 
+# -----------------------------------------------------------------------------
+# Migration overrides
+# -----------------------------------------------------------------------------
+# Patch upstream Saleor migration dependency issues without editing site-packages.
+MIGRATION_MODULES = globals().get("MIGRATION_MODULES", {})
+if not isinstance(MIGRATION_MODULES, dict):
+    MIGRATION_MODULES = {}
+# Saleor `permission.0002` hardcodes an auth migration name that doesn't exist in some envs.
+MIGRATION_MODULES.setdefault("permission", "saleor_migration_overrides.permission.migrations")
+
 # Ensure required Django contrib apps are present.
 # Some deployments ended up with Saleor settings partially imported, causing `django.contrib.auth`
 # to be missing, which breaks Saleor's `account.User` relations (Group/Permission) and blocks migrations.

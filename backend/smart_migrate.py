@@ -222,7 +222,17 @@ def fake_problematic_migrations():
     try:
         from django.db.migrations.recorder import MigrationRecorder
         recorder = MigrationRecorder(connection)
-        applied_migrations = {m.app: m.name for m in recorder.applied_migrations()}
+        # Django returns a set of (app, name) tuples here.
+        applied_migrations = {}
+        for row in recorder.applied_migrations():
+            try:
+                app, name = row  # tuple form
+                applied_migrations[app] = name
+            except Exception:
+                try:
+                    applied_migrations[row.app] = row.name  # model-like fallback
+                except Exception:
+                    pass
         
         # Check if product migration that inventory depends on exists
         if 'product' not in applied_migrations or '0202_category_product_category_tree_id_lf1e1' not in applied_migrations.get('product', ''):
