@@ -52,11 +52,7 @@ class TaxExemption(models.Model):
         ('ORDER_VALUE', 'Order Value-based'),
     ]
     
-    region = models.ForeignKey(
-        Region,
-        on_delete=models.CASCADE,
-        related_name='tax_exemptions'
-    )
+    country = models.CharField(max_length=100, default='')
     exemption_type = models.CharField(max_length=20, choices=EXEMPTION_TYPE_CHOICES)
     name = models.CharField(max_length=200)
     # For PRODUCT: product_id or category
@@ -85,12 +81,12 @@ class TaxExemption(models.Model):
         db_table = 'tax_exemptions'
         verbose_name = 'Tax Exemption'
         verbose_name_plural = 'Tax Exemptions'
-        ordering = ['region', 'exemption_type']
+        ordering = ['country', 'exemption_type']
         indexes = [
-            models.Index(fields=['region', 'exemption_type', 'is_active']),
+            models.Index(fields=['country', 'exemption_type', 'is_active']),
         ]
     
     def __str__(self):
-        return f"{self.name} ({self.region.code}) - {self.exemption_type}"
+        return f"{self.name} ({self.country}) - {self.exemption_type}"
 
 
