@@ -341,7 +341,12 @@ def ensure_saleor_channel_tables():
         return False
 
 def fake_problematic_migrations():
-    """Mark known problematic migrations as fake"""
+    """Mark known problematic migrations as fake without loading migration files.
+    
+    These migrations try to import GraphQL schema classes at import time, causing
+    circular import errors. We mark them as applied directly in the database
+    without loading the migration module.
+    """
     problematic_migrations = [
         ('site', '0014'),  # display_gross_prices duplicate column
         ('site', '0015'),  # track_inventory_by_default duplicate column in site_sitesettings
@@ -349,13 +354,35 @@ def fake_problematic_migrations():
         ('checkout', '0008'),  # cart_cart table rename issue
     ]
     
+    from django.db.migrations.recorder import MigrationRecorder
+    
     for app, migration in problematic_migrations:
         try:
-            print(f"🔧 Attempting to fake {app}.{migration}...")
-            call_command('migrate', app, migration, fake=True, verbosity=1, interactive=False)
-            print(f"✅ Faked {app}.{migration}")
+            # Check if migration is already recorded
+            recorder = MigrationRecorder(connection)
+            if recorder.applied_migrations.filter(app=app, name=migration).exists():
+                print(f"✅ {app}.{migration} already recorded as applied")
+                continue
+            
+            # Mark as applied directly in database without loading migration file
+            print(f"🔧 Marking {app}.{migration} as applied (skipping import to avoid GraphQL circular import)...")
+            with transaction.atomic():
+                recorder.record_applied(app, migration)
+            print(f"✅ {app}.{migration} marked as applied")
+            _log(
+                "smart_migrate.py:fake_problematic_migrations",
+                f"Marked {app}.{migration} as applied",
+                {"app": app, "migration": migration},
+                "H22",
+            )
         except Exception as e:
-            print(f"⚠️  Could not fake {app}.{migration}: {e}")
+            print(f"⚠️  Could not mark {app}.{migration} as applied: {e}")
+            _log(
+                "smart_migrate.py:fake_problematic_migrations",
+                f"Failed to mark {app}.{migration} as applied",
+                {"app": app, "migration": migration, "error": str(e)},
+                "H22",
+            )
     
     # Check if product app migrations are needed for inventory
     # If product migrations haven't run, we may need to fake the dependency
