@@ -87,6 +87,26 @@ if os.environ.get('DATABASE_URL'):
             python_cmd = sys.executable
         
         # Set up libmagic path for subprocess (same as start command in nixpacks.toml)
+        # First, ensure critical columns exist (like search_document)
+        # This fixes GraphQL query errors for missing columns
+        try:
+            fix_script = os.path.join(backend_dir, 'fix_product_search_document.py')
+            if os.path.exists(fix_script):
+                print("----- Running fix_product_search_document.py -----")
+                result = subprocess.run(
+                    [python_cmd, fix_script],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=backend_dir
+                )
+                if result.returncode == 0:
+                    print("✅ Product column fix completed")
+                else:
+                    print(f"⚠️  Product column fix had issues: {result.stderr[:500]}")
+        except Exception as e:
+            print(f"⚠️  Could not run product column fix: {e}")
+        
         # Use smart_migrate.py which handles problematic migrations gracefully
         shell_cmd = (
             f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
