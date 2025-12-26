@@ -596,6 +596,28 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [  # noqa: F405
     'saleor_extensions.permissions',
 ]
 
+# Ensure required Django contrib apps are present.
+# Some deployments ended up with Saleor settings partially imported, causing `django.contrib.auth`
+# to be missing, which breaks Saleor's `account.User` relations (Group/Permission) and blocks migrations.
+_required_contrib_apps = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "django.contrib.sessions",
+]
+for _app in _required_contrib_apps:
+    if _app not in INSTALLED_APPS:
+        # Insert at the beginning to satisfy dependencies (auth depends on contenttypes).
+        INSTALLED_APPS.insert(0, _app)
+        try:
+            _log_msg(
+                "grandgold_settings.py:ensure_contrib_apps",
+                "Inserted missing Django contrib app",
+                {"app": _app},
+                "H20",
+            )
+        except Exception:
+            pass
+
 # Ensure MIDDLEWARE exists
 if 'MIDDLEWARE' not in globals():
     MIDDLEWARE = []
