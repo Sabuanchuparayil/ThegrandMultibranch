@@ -17,10 +17,14 @@ const GET_PRODUCTS = gql`
           channelListings {
             isPublished
           }
-          productVariants {
-            id
-            name
-            sku
+          productVariants(first: 20) {
+            edges {
+              node {
+                id
+                name
+                sku
+              }
+            }
           }
         }
       }
@@ -190,7 +194,7 @@ export default function ProductsModule() {
                   </tr>
                 ) : (
                   products.map((product: any) => {
-                    const variants = product.productVariants || [];
+                    const variants = (product?.productVariants?.edges || []).map((e: any) => e.node);
 
                     return (
                       <tr key={product.id} className="hover:bg-gray-50">

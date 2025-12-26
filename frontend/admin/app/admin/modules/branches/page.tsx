@@ -72,6 +72,32 @@ export default function BranchesModule() {
     ? mockBranches
     : data.branches;
 
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'branches/page.tsx:BranchesModule:dataSource',
+        message: 'Branches list data source',
+        data: {
+          hypothesisId: 'H13',
+          usedMock: Boolean((error && shouldShowError) || !data?.branches),
+          apiCount: Array.isArray(data?.branches) ? data.branches.length : null,
+          rawCount: Array.isArray(rawBranches) ? rawBranches.length : null,
+          hasError: Boolean(error),
+          shouldShowError,
+          errMsg: (error as any)?.message || null,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H13',
+      }),
+    }).catch(() => {});
+  }, [error, shouldShowError, data?.branches?.length]);
+  // #endregion
+
   // Apply client-side filtering to both API and mock data
   const branches = rawBranches.filter((branch: any) => {
     if (searchTerm) {

@@ -116,6 +116,9 @@ def _graphql_entrypoint(request):
             def __init__(self, request):
                 self.request = request
                 self.app = getattr(request, "app", None)
+                # Saleor expects this flag for DB routing in some resolvers (e.g. products).
+                # Default to False to avoid trying to use a replica connection implicitly.
+                self.allow_replica = False
                 user = getattr(request, "user", None)
                 if user is None:
                     try:
