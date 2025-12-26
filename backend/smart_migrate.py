@@ -171,45 +171,56 @@ def _verify_custom_tables():
     _log("smart_migrate.py:verify", "verified custom tables", {"missing": missing, "missingCount": len(missing)}, "H7")
     return missing
 
-def ensure_saleor_sort_order_column():
+def ensure_saleor_productvariant_columns():
     """
-    Saleor code expects `product_productvariant.sort_order` but some DBs can be older / partially migrated.
-    If missing, add it safely. This fixes runtime failures like:
-      column product_productvariant.sort_order does not exist
+    Saleor code expects certain columns on `product_productvariant` but some DBs can be older / partially migrated.
+    If missing, add them safely. This fixes runtime failures like:
+      - column product_productvariant.sort_order does not exist
+      - column product_productvariant.private_metadata does not exist
     """
     try:
         if not check_table_exists("product_productvariant"):
             _log(
-                "smart_migrate.py:ensure_sort_order",
+                "smart_migrate.py:ensure_productvariant_columns",
                 "product_productvariant table missing; skipping sort_order check",
                 {},
                 "H10",
             )
             return False
-        exists = check_column_exists("product_productvariant", "sort_order")
-        if exists:
-            _log(
-                "smart_migrate.py:ensure_sort_order",
-                "sort_order column already exists",
-                {},
-                "H10",
-            )
-            return True
+
+        changes = []
         with connection.cursor() as cursor:
-            cursor.execute(
-                "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;"
-            )
+            # sort_order
+            if not check_column_exists("product_productvariant", "sort_order"):
+                cursor.execute(
+                    "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;"
+                )
+                changes.append("sort_order")
+
+            # metadata / private_metadata (Saleor uses JSONField -> jsonb)
+            if not check_column_exists("product_productvariant", "metadata"):
+                cursor.execute(
+                    "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;"
+                )
+                changes.append("metadata")
+
+            if not check_column_exists("product_productvariant", "private_metadata"):
+                cursor.execute(
+                    "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS private_metadata jsonb NOT NULL DEFAULT '{}'::jsonb;"
+                )
+                changes.append("private_metadata")
+
         _log(
-            "smart_migrate.py:ensure_sort_order",
-            "Added missing sort_order column to product_productvariant",
-            {},
+            "smart_migrate.py:ensure_productvariant_columns",
+            "Ensured product_productvariant columns",
+            {"added": changes},
             "H10",
         )
         return True
     except Exception as e:
         _log(
-            "smart_migrate.py:ensure_sort_order",
-            "Failed to add sort_order column",
+            "smart_migrate.py:ensure_productvariant_columns",
+            "Failed ensuring product_productvariant columns",
             {"error": str(e), "error_type": type(e).__name__},
             "H10",
         )
@@ -257,7 +268,7 @@ def main():
             print("=" * 80)
             migrate_custom_apps()
             seed_default_regions()
-            ensure_saleor_sort_order_column()
+            ensure_saleor_productvariant_columns()
             
             print("\n" + "=" * 80)
             print("⚠️  Some Saleor migrations failed, but custom app migrations completed")
@@ -274,7 +285,7 @@ def main():
     print("=" * 80)
     
     seed_default_regions()
-    ensure_saleor_sort_order_column()
+    ensure_saleor_productvariant_columns()
     missing = _verify_custom_tables()
     if missing:
         print("\n⚠️  Some custom app tables are missing - retrying custom app migrations")
