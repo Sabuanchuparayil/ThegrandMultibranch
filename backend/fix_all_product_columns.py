@@ -9,18 +9,20 @@ rather than fixing them one by one as errors occur.
 """
 import os
 import sys
-import django
+import psycopg2
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-django.setup()
-
-from django.db import connection, transaction
+def _connect():
+    dsn = os.environ.get("DATABASE_URL")
+    if not dsn:
+        raise RuntimeError("DATABASE_URL is not set; cannot apply DB repairs.")
+    return psycopg2.connect(dsn)
 
 def check_column_exists(table_name, column_name):
     """Check if a column exists in a table"""
-    with connection.cursor() as cursor:
+    with _connect() as conn, conn.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.columns 
@@ -33,7 +35,7 @@ def check_column_exists(table_name, column_name):
 
 def check_table_exists(table_name):
     """Check if a table exists"""
-    with connection.cursor() as cursor:
+    with _connect() as conn, conn.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
@@ -190,20 +192,20 @@ def add_all_product_columns():
         for col in all_required_columns:
             if not check_column_exists("product_product", col['name']):
                 print(f"🔧 Adding {col['name']} column ({col['description']})...")
-                with connection.cursor() as cursor:
+                with _connect() as conn, conn.cursor() as cursor:
                     default_clause = col.get('default', '')
                     nullable = 'NULL' if col.get('nullable', True) else 'NOT NULL'
-                    
+
                     if default_clause:
-                        cursor.execute(f"""
-                            ALTER TABLE product_product 
-                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable} {default_clause};
-                        """)
+                        cursor.execute(
+                            f"ALTER TABLE product_product "
+                            f"ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable} {default_clause};"
+                        )
                     else:
-                        cursor.execute(f"""
-                            ALTER TABLE product_product 
-                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable};
-                        """)
+                        cursor.execute(
+                            f"ALTER TABLE product_product "
+                            f"ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable};"
+                        )
                 changes.append(col['name'])
                 print(f"✅ Successfully added {col['name']} column")
             else:
@@ -227,8 +229,8 @@ if __name__ == '__main__':
     print("Adding ALL required Saleor Product columns to prevent GraphQL 400 errors")
     print("=" * 80)
     
-    with transaction.atomic():
-        success = add_all_product_columns()
+    # Use direct SQL connection instead of Django transactions to avoid boot failures
+    success = add_all_product_columns()
     
     if success:
         print("\n✅ Fix completed successfully!")
