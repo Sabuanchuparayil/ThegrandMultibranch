@@ -153,9 +153,9 @@ class InvoiceTemplate(models.Model):
         verbose_name = 'Invoice Template'
         verbose_name_plural = 'Invoice Templates'
         indexes = [
-            models.Index(fields=['region', 'is_active', 'is_default']),
+            models.Index(fields=['country', 'is_active', 'is_default']),
         ]
     
     def __str__(self):
-        return f"{self.name} ({self.region.code})"
+        return f"{self.name} ({self.country})"
 
