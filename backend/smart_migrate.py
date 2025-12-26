@@ -213,7 +213,7 @@ def fake_problematic_migrations():
     for app, migration in problematic_migrations:
         try:
             print(f"🔧 Attempting to fake {app}.{migration}...")
-            call_command('migrate', app, migration, '--fake', verbosity=1)
+            call_command('migrate', app, migration, fake=True, verbosity=1, interactive=False)
             print(f"✅ Faked {app}.{migration}")
         except Exception as e:
             print(f"⚠️  Could not fake {app}.{migration}: {e}")
