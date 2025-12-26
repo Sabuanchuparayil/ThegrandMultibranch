@@ -821,6 +821,10 @@ if ',' in allowed_client_hosts:
 else:
     ALLOWED_CLIENT_HOSTS = [allowed_client_hosts] if allowed_client_hosts != '*' else ['*']
 
+# Ensure admin.jewellery.seeglob.com is in ALLOWED_CLIENT_HOSTS if not using wildcard
+if ALLOWED_CLIENT_HOSTS != ['*'] and 'admin.jewellery.seeglob.com' not in ALLOWED_CLIENT_HOSTS:
+    ALLOWED_CLIENT_HOSTS.append('admin.jewellery.seeglob.com')
+
 # CORS Configuration for frontend connections
 # Allow requests from admin dashboard and storefront
 
@@ -831,10 +835,12 @@ else:
 # Use regex patterns to match Railway subdomains dynamically
 CORS_ALLOW_ALL_ORIGINS = False
 
-# Regex patterns to match Railway subdomains (more flexible than hardcoded URLs)
+# Regex patterns to match Railway subdomains and custom domains (more flexible than hardcoded URLs)
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://.*\.railway\.app$',  # Match any Railway subdomain (https)
     r'^http://.*\.railway\.app$',   # Match any Railway subdomain (http, for testing)
+    r'^https://.*\.seeglob\.com$',  # Match any seeglob.com subdomain (https) - for admin.jewellery.seeglob.com
+    r'^http://.*\.seeglob\.com$',   # Match any seeglob.com subdomain (http, for testing)
     r'^http://localhost(:\d+)?$',   # Allow localhost with optional port (default port 80 doesn't include :80)
     r'^http://127\.0\.0\.1(:\d+)?$', # Allow 127.0.0.1 with optional port (default port 80 doesn't include :80)
 ]
@@ -850,6 +856,7 @@ else:
     CORS_ALLOWED_ORIGINS = [
         'https://admin-dashboard-production-1924.up.railway.app',
         'https://storefront-app-production-1924.up.railway.app',
+        'https://admin.jewellery.seeglob.com',  # Custom domain for admin dashboard
         'http://localhost:3000',  # Local development
         'http://localhost:3001',  # Local development (alternative port)
     ]
