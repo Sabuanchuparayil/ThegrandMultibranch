@@ -171,6 +171,50 @@ def _verify_custom_tables():
     _log("smart_migrate.py:verify", "verified custom tables", {"missing": missing, "missingCount": len(missing)}, "H7")
     return missing
 
+def ensure_saleor_sort_order_column():
+    """
+    Saleor code expects `product_productvariant.sort_order` but some DBs can be older / partially migrated.
+    If missing, add it safely. This fixes runtime failures like:
+      column product_productvariant.sort_order does not exist
+    """
+    try:
+        if not check_table_exists("product_productvariant"):
+            _log(
+                "smart_migrate.py:ensure_sort_order",
+                "product_productvariant table missing; skipping sort_order check",
+                {},
+                "H10",
+            )
+            return False
+        exists = check_column_exists("product_productvariant", "sort_order")
+        if exists:
+            _log(
+                "smart_migrate.py:ensure_sort_order",
+                "sort_order column already exists",
+                {},
+                "H10",
+            )
+            return True
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "ALTER TABLE product_productvariant ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;"
+            )
+        _log(
+            "smart_migrate.py:ensure_sort_order",
+            "Added missing sort_order column to product_productvariant",
+            {},
+            "H10",
+        )
+        return True
+    except Exception as e:
+        _log(
+            "smart_migrate.py:ensure_sort_order",
+            "Failed to add sort_order column",
+            {"error": str(e), "error_type": type(e).__name__},
+            "H10",
+        )
+        return False
+
 def main():
     print("=" * 80)
     print("SMART MIGRATION SCRIPT")
@@ -213,6 +257,7 @@ def main():
             print("=" * 80)
             migrate_custom_apps()
             seed_default_regions()
+            ensure_saleor_sort_order_column()
             
             print("\n" + "=" * 80)
             print("⚠️  Some Saleor migrations failed, but custom app migrations completed")
@@ -229,6 +274,7 @@ def main():
     print("=" * 80)
     
     seed_default_regions()
+    ensure_saleor_sort_order_column()
     missing = _verify_custom_tables()
     if missing:
         print("\n⚠️  Some custom app tables are missing - retrying custom app migrations")

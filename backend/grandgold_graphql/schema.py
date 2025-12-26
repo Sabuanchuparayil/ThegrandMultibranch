@@ -326,8 +326,14 @@ class GrandGoldQueries(graphene.ObjectType):
             try:
                 recorder = MigrationRecorder(connection)
                 for m in recorder.applied_migrations():
-                    if m.app in {"inventory", "branches", "regions", "product"}:
-                        applied.append(f"{m.app}.{m.name}")
+                    # Django 5 returns tuples (app_label, migration_name)
+                    if isinstance(m, tuple) and len(m) >= 2:
+                        app_label, mig_name = m[0], m[1]
+                    else:
+                        app_label = getattr(m, "app", None)
+                        mig_name = getattr(m, "name", None)
+                    if app_label in {"inventory", "branches", "regions", "product"}:
+                        applied.append(f"{app_label}.{mig_name}")
             except Exception as e:
                 applied = [f"ERROR:{type(e).__name__}:{str(e)}"]
 
