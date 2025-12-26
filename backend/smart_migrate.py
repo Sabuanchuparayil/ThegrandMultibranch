@@ -205,6 +205,7 @@ def fake_problematic_migrations():
     """Mark known problematic migrations as fake"""
     problematic_migrations = [
         ('site', '0014'),  # display_gross_prices duplicate column
+        ('site', '0015'),  # track_inventory_by_default duplicate column in site_sitesettings
         ('checkout', '0008'),  # cart_cart table rename issue
     ]
     
@@ -346,14 +347,53 @@ def ensure_saleor_core_apps():
         "H19",
     )
     # #endregion
-    apps = ["contenttypes", "sites", "core", "channel", "tax", "product", "warehouse"]
+    # NOTE: Saleor has an app named `site` (distinct from Django's `sites`).
+    # The `site` migrations are currently the #1 source of "column already exists" failures
+    # which block downstream apps (tax/product) from creating required tables.
+    apps = ["contenttypes", "auth", "sites", "site", "core", "channel", "tax", "product", "warehouse"]
     results = []
+
+    def _maybe_fix_site_duplicate_column(err: Exception) -> bool:
+        """
+        Recover from a common partially-migrated DB state:
+          column "track_inventory_by_default" of relation "site_sitesettings" already exists
+        In that case, faking `site.0015` is safe because the column is already present.
+        """
+        msg = str(err)
+        if "site_sitesettings" in msg and "track_inventory_by_default" in msg and "already exists" in msg:
+            try:
+                print("🔧 Detected duplicate column on site_sitesettings; faking site.0015 and continuing...")
+                call_command("migrate", "site", "0015", verbosity=1, interactive=False, fake=True)
+                return True
+            except Exception as e:
+                print(f"⚠️  Failed to fake site.0015: {e}")
+                return False
+        if "site_sitesettings" in msg and "display_gross_prices" in msg and "already exists" in msg:
+            try:
+                print("🔧 Detected duplicate column on site_sitesettings; faking site.0014 and continuing...")
+                call_command("migrate", "site", "0014", verbosity=1, interactive=False, fake=True)
+                return True
+            except Exception as e:
+                print(f"⚠️  Failed to fake site.0014: {e}")
+                return False
+        return False
+
     for app in apps:
         try:
             print(f"📦 Ensuring Saleor app migrated: {app}")
-            call_command("migrate", app, verbosity=2, interactive=False)
+            call_command("migrate", app, verbosity=1, interactive=False)
             results.append({"app": app, "ok": True})
         except Exception as e:
+            # Attempt a one-time recovery for known partial-migration conflicts (then retry)
+            recovered = _maybe_fix_site_duplicate_column(e)
+            if recovered:
+                try:
+                    print(f"🔁 Retrying migrate for {app} after recovery...")
+                    call_command("migrate", app, verbosity=1, interactive=False)
+                    results.append({"app": app, "ok": True, "recovered": True})
+                    continue
+                except Exception as e_retry:
+                    e = e_retry
             results.append({"app": app, "ok": False, "error": str(e), "error_type": type(e).__name__})
             print(f"⚠️  Saleor app migrate failed for {app}: {e}")
     _log(
@@ -575,7 +615,7 @@ def main():
     # #endregion
     
     try:
-        call_command('migrate', verbosity=2, interactive=False)
+        call_command('migrate', verbosity=1, interactive=False)
         print("\n✅ All migrations completed successfully")
         _log("smart_migrate.py:migrate_all", "migrate all completed", {}, "H7")
         
@@ -634,7 +674,7 @@ def main():
             )
             # #endregion
             try:
-                call_command('migrate', 'product', verbosity=2, interactive=False)
+                call_command('migrate', 'product', verbosity=1, interactive=False)
                 # #region agent log
                 _log(
                     "smart_migrate.py:fallback:product_migrate:success",
