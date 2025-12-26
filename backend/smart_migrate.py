@@ -71,9 +71,31 @@ def ensure_saleor_channel_tables():
             _log("smart_migrate.py:ensure_channel", "channel_channel table exists", {}, "H14")
             return True
 
+        print("⚠️  channel_channel missing; attempting to migrate channel app...")
         _log("smart_migrate.py:ensure_channel", "channel_channel missing; migrating channel app", {}, "H14")
         try:
+            # Try normal migrate first
             call_command("migrate", "channel", verbosity=2, interactive=False)
+        except Exception as e:
+            # Try fake-initial as a recovery path if tables partially exist / migration graph mismatch
+            print(f"⚠️  channel migrate failed, retrying with --fake-initial: {e}")
+            _log(
+                "smart_migrate.py:ensure_channel",
+                "channel migrate failed; retrying fake_initial",
+                {"error": str(e), "error_type": type(e).__name__},
+                "H14",
+            )
+            try:
+                call_command("migrate", "channel", verbosity=2, interactive=False, fake_initial=True)
+            except Exception as e2:
+                print(f"❌ channel migrate (fake-initial) failed: {e2}")
+                _log(
+                    "smart_migrate.py:ensure_channel",
+                    "channel migrate failed",
+                    {"error": str(e2), "error_type": type(e2).__name__},
+                    "H14",
+                )
+                return False
         except Exception as e:
             _log(
                 "smart_migrate.py:ensure_channel",
@@ -84,6 +106,7 @@ def ensure_saleor_channel_tables():
             return False
 
         ok = check_table_exists("channel_channel")
+        print(f"✅ channel_channel exists after migrate: {ok}")
         _log("smart_migrate.py:ensure_channel", "channel_channel after migrate", {"exists": ok}, "H14")
         return ok
     except Exception as e:
@@ -204,6 +227,21 @@ def _verify_custom_tables():
     _log("smart_migrate.py:verify", "verified custom tables", {"missing": missing, "missingCount": len(missing)}, "H7")
     return missing
 
+def _verify_required_saleor_tables():
+    required = ["channel_channel"]
+    missing = [t for t in required if not check_table_exists(t)]
+    _log(
+        "smart_migrate.py:verify_saleor",
+        "verified required Saleor tables",
+        {"missing": missing, "missingCount": len(missing)},
+        "H14",
+    )
+    if missing:
+        print(f"❌ Missing required Saleor tables: {missing}")
+    else:
+        print("✅ Required Saleor tables exist")
+    return missing
+
 def ensure_saleor_productvariant_columns():
     """
     Saleor code expects certain columns on `product_productvariant` but some DBs can be older / partially migrated.
@@ -316,7 +354,8 @@ def main():
             print("=" * 80)
             print("\nYou may need to manually fix Saleor migrations later.")
             missing = _verify_custom_tables()
-            return 0 if not missing else 1
+            saleor_missing = _verify_required_saleor_tables()
+            return 0 if (not missing and not saleor_missing) else 1
         else:
             return 1
     
@@ -329,6 +368,7 @@ def main():
     ensure_saleor_productvariant_columns()
     ensure_saleor_channel_tables()
     missing = _verify_custom_tables()
+    saleor_missing = _verify_required_saleor_tables()
     if missing:
         print("\n⚠️  Some custom app tables are missing - retrying custom app migrations")
         migrate_custom_apps()
@@ -337,6 +377,9 @@ def main():
         print("\n✅ All custom app tables exist!")
     else:
         print("\n❌ Some custom app tables are still missing after retry:", missing)
+        return 1
+    if saleor_missing:
+        print("\n❌ Missing required Saleor tables after migrations:", saleor_missing)
         return 1
     
     print("\n" + "=" * 80)

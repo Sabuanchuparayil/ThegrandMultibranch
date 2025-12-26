@@ -104,6 +104,12 @@ if os.environ.get('DATABASE_URL'):
         )
         if result.returncode == 0:
             print("✅ Migrations checked/run on startup (via subprocess)")
+            # Print a short tail of the migration output so Railway logs show what actually happened
+            if result.stdout:
+                tail = result.stdout[-4000:]
+                print("----- smart_migrate.py output (tail) -----")
+                print(tail)
+                print("----- end smart_migrate.py output -----")
         else:
             # Show the actual error for debugging
             error_output = result.stderr or result.stdout or "No error output"
