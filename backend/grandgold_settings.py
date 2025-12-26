@@ -604,8 +604,47 @@ _required_contrib_apps = [
     "django.contrib.auth",
     "django.contrib.sessions",
 ]
+
+def _dedupe_by_prefix(prefix: str):
+    """Remove duplicate entries that share a common module prefix (e.g. django.contrib.auth.*)."""
+    kept = False
+    new_apps = []
+    removed = []
+    for entry in INSTALLED_APPS:
+        if isinstance(entry, str) and (entry == prefix or entry.startswith(prefix + ".")):
+            if not kept:
+                new_apps.append(entry)
+                kept = True
+            else:
+                removed.append(entry)
+        else:
+            new_apps.append(entry)
+    if removed:
+        try:
+            _log_msg(
+                "grandgold_settings.py:ensure_contrib_apps",
+                "Removed duplicate contrib app entries",
+                {"prefix": prefix, "removed": removed},
+                "H20",
+            )
+        except Exception:
+            pass
+    return new_apps
+
+# Normalize contrib apps:
+# - Saleor may include app config paths like `django.contrib.auth.apps.AuthConfig`, which
+#   would not equal `django.contrib.auth` but still uses the same app label ("auth").
+# - Adding `django.contrib.auth` in that case creates duplicate labels and crashes Django.
+INSTALLED_APPS = _dedupe_by_prefix("django.contrib.contenttypes")
+INSTALLED_APPS = _dedupe_by_prefix("django.contrib.auth")
+INSTALLED_APPS = _dedupe_by_prefix("django.contrib.sessions")
+
 for _app in _required_contrib_apps:
-    if _app not in INSTALLED_APPS:
+    present = any(
+        isinstance(x, str) and (x == _app or x.startswith(_app + "."))
+        for x in INSTALLED_APPS
+    )
+    if not present:
         # Insert at the beginning to satisfy dependencies (auth depends on contenttypes).
         INSTALLED_APPS.insert(0, _app)
         try:
