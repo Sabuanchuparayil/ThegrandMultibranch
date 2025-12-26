@@ -2,11 +2,14 @@
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci"]
+# Ensure devDependencies are installed even when Railway sets NODE_ENV=production
+# (Next.js TypeScript checks require @types/node during build).
+cmds = ["npm ci --include=dev"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
 cmd = "npm start"
+
 
