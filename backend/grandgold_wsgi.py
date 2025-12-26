@@ -99,11 +99,12 @@ if os.environ.get('DATABASE_URL'):
                 script_name = os.path.basename(fix_script)
                 print(f"----- Running {script_name} -----")
                 # Set up libmagic path for subprocess
+                script_name_only = os.path.basename(fix_script)
                 shell_cmd = (
                     f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
                     f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
                     f"cd {backend_dir} && "
-                    f"{python_cmd} fix_product_search_document.py 2>&1"
+                    f"{python_cmd} {script_name_only} 2>&1"
                 )
                 result = subprocess.run(
                     ['/bin/bash', '-c', shell_cmd],
@@ -113,11 +114,11 @@ if os.environ.get('DATABASE_URL'):
                     env=subprocess_env
                 )
                 if result.returncode == 0:
-                    print("✅ Product search columns fix completed")
+                    print(f"✅ {script_name} completed successfully")
                     if result.stdout:
                         print(result.stdout[-1000:])  # Show last 1000 chars of output
                 else:
-                    print(f"⚠️  Product column fix had issues (exit code {result.returncode})")
+                    print(f"⚠️  {script_name} had issues (exit code {result.returncode})")
                     if result.stderr:
                         print(f"STDERR: {result.stderr[:500]}")
                     if result.stdout:
