@@ -88,6 +88,14 @@ def add_search_columns():
                 'nullable': True,
                 'description': 'Foreign key to default product variant'
             },
+            # Product rating and review columns (Saleor uses these for product queries)
+            {
+                'name': 'rating',
+                'type': 'numeric(3, 2)',
+                'nullable': True,
+                'default': 'DEFAULT NULL',
+                'description': 'Product rating (0.00 to 5.00)'
+            },
         ]
         
         # Add each column if it doesn't exist
@@ -128,7 +136,7 @@ def add_search_columns():
 if __name__ == '__main__':
     print("=" * 80)
     print("FIXING MISSING PRODUCT COLUMNS")
-    print("Adding: search_document, search_vector, search_index_dirty, created_at, default_variant_id")
+    print("Adding: search_document, search_vector, search_index_dirty, created_at, default_variant_id, rating")
     print("=" * 80)
     
     with transaction.atomic():
