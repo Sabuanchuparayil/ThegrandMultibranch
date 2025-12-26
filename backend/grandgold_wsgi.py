@@ -47,6 +47,20 @@ def _release_startup_lock(fd):
     except Exception:
         pass
 
+def _should_run_startup_tasks():
+    """
+    Run DB startup tasks at most once per container boot.
+    Gunicorn spawns multiple workers; we must avoid each worker running migrations.
+    """
+    return not os.path.exists("/tmp/grandgold_startup.done")
+
+def _mark_startup_tasks_done():
+    try:
+        with open("/tmp/grandgold_startup.done", "w") as f:
+            f.write("done\n")
+    except Exception:
+        pass
+
 # CRITICAL: Set LD_LIBRARY_PATH for libmagic BEFORE any imports
 # This must happen before Django or Saleor imports, as they may trigger libmagic usage
 try:
@@ -109,11 +123,21 @@ except Exception:
 # NOTE: Migrations should be generated locally and committed to git
 # This only applies existing migrations, it does not create new ones
 if os.environ.get('DATABASE_URL'):
-    _lock_fd = _acquire_startup_lock()
-    if _lock_fd is None:
-        print("ℹ️  Startup DB tasks already running in another worker; skipping migrations/repair in this worker.")
+    _lock_fd = None
+    if not _should_run_startup_tasks():
+        print("ℹ️  Startup DB tasks already completed for this container; skipping.")
     else:
-        print("🔒 Acquired startup lock; running DB repair + migrations once.")
+        _lock_fd = _acquire_startup_lock()
+        if _lock_fd is None:
+            print("ℹ️  Startup DB tasks already running in another worker; skipping migrations/repair in this worker.")
+        else:
+            # Re-check after acquiring lock to avoid a race between workers.
+            if not _should_run_startup_tasks():
+                print("ℹ️  Startup DB tasks already completed by another worker; skipping.")
+                _release_startup_lock(_lock_fd)
+                _lock_fd = None
+            else:
+                print("🔒 Acquired startup lock; running DB repair + migrations once.")
     try:
         # Use subprocess to run migrations to avoid django.setup() reentrant issues
         # This prevents "populate() isn't reentrant" errors when Django loads the WSGI app
@@ -215,6 +239,9 @@ if os.environ.get('DATABASE_URL'):
             print(f"⚠️  Could not run migrations on startup: {e}")
             print("   This is OK - migrations may have already been run during build")
     finally:
+        # Mark as done even if something failed so we don't spam/run repeatedly per worker.
+        if _lock_fd is not None:
+            _mark_startup_tasks_done()
         _release_startup_lock(_lock_fd)
 
 # Create application
