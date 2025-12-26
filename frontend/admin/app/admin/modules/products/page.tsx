@@ -270,12 +270,54 @@ export default function ProductsModule() {
 
 // Product Form Modal
 function ProductFormModal({ product, onClose, onSuccess }: any) {
+  const _initialIsPublished = Boolean(
+    product?.channelListings?.[0]?.isPublished ?? product?.isPublished ?? false
+  );
+
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
     slug: product?.slug || '',
-    isPublished: product?.isPublished ?? false,
+    isPublished: _initialIsPublished,
   });
+
+  // Keep form state in sync when opening the modal for different products.
+  useEffect(() => {
+    const nextIsPublished = Boolean(
+      product?.channelListings?.[0]?.isPublished ?? product?.isPublished ?? false
+    );
+
+    setFormData({
+      name: product?.name || '',
+      description: product?.description || '',
+      slug: product?.slug || '',
+      isPublished: nextIsPublished,
+    });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'products/page.tsx:ProductFormModal:init',
+        message: 'ProductFormModal initialized publish state',
+        data: {
+          hypothesisId: 'H12',
+          hasProduct: Boolean(product),
+          productId: product?.id || null,
+          hasTopLevelIsPublished: typeof product?.isPublished !== 'undefined',
+          channelListingsLen: Array.isArray(product?.channelListings) ? product.channelListings.length : 0,
+          channel0IsPublished: product?.channelListings?.[0]?.isPublished ?? null,
+          computedIsPublished: nextIsPublished,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H12',
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [product?.id]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
