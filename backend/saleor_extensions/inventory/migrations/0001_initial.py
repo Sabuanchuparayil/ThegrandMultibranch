@@ -11,7 +11,9 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('branches', '0001_initial'),
-        ('product', '0202_category_product_category_tree_id_lf1e1'),
+        # NOTE: Depending on a late Saleor product migration blocks our inventory tables in fresh/prod DBs.
+        # We only need ProductVariant to exist; `__first__` allows us to run after the product app starts.
+        ('product', '__first__'),
     ]
 
     operations = [

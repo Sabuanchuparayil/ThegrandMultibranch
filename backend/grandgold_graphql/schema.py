@@ -295,9 +295,46 @@ class GrandGoldQueries(graphene.ObjectType):
     """Always-present marker fields to prove our schema is being served."""
 
     grandgold_schema_version = graphene.String(description="Grand Gold schema marker/version")
+    grandgold_db_status = graphene.String(description="Grand Gold DB table/migration status (JSON string)")
 
     def resolve_grandgold_schema_version(self, info):
         return "grandgold-extended-v1"
+
+    def resolve_grandgold_db_status(self, info):
+        # NOTE: return JSON string to avoid introducing scalar conflicts.
+        import json as _json
+        try:
+            from django.db import connection
+            from django.db.migrations.recorder import MigrationRecorder
+
+            def _table_exists(name: str) -> bool:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=%s)",
+                        [name],
+                    )
+                    return bool(cursor.fetchone()[0])
+
+            tables = {
+                "regions": _table_exists("regions"),
+                "branches": _table_exists("branches"),
+                "branch_inventory": _table_exists("branch_inventory"),
+                "django_migrations": _table_exists("django_migrations"),
+            }
+
+            applied = []
+            try:
+                recorder = MigrationRecorder(connection)
+                for m in recorder.applied_migrations():
+                    if m.app in {"inventory", "branches", "regions", "product"}:
+                        applied.append(f"{m.app}.{m.name}")
+            except Exception as e:
+                applied = [f"ERROR:{type(e).__name__}:{str(e)}"]
+
+            payload = {"tables": tables, "appliedMigrationsSample": applied[-20:]}
+            return _json.dumps(payload)
+        except Exception as e:
+            return _json.dumps({"error": str(e), "error_type": type(e).__name__})
 
 
 def _unique_bases(bases):

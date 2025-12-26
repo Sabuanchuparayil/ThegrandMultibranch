@@ -348,7 +348,20 @@ class InventoryQueries(graphene.ObjectType):
         )
         # #endregion
 
-        queryset = BranchInventory.objects.select_related("branch", "product_variant").all()
+        try:
+            queryset = BranchInventory.objects.select_related("branch", "product_variant").all()
+        except Exception as e:
+            # If migrations haven't run yet in the target environment, the table may not exist.
+            # Return empty list so the UI can load; the migrations system should create the table shortly after.
+            # #region agent log
+            _inventory_log(
+                "inventory/schema.py:resolve_branch_inventory:missing_table",
+                "BranchInventory query failed; returning empty list",
+                {"hypothesisId": "H9", "error": str(e), "error_type": type(e).__name__},
+                "H9",
+            )
+            # #endregion
+            return []
         
         if merged_branch_id:
             queryset = queryset.filter(branch_id=merged_branch_id)
