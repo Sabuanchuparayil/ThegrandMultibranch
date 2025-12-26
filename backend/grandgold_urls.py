@@ -21,8 +21,9 @@ def _log(location: str, message: str, data: dict, hypothesis_id: str, run_id: st
 
     try:
         log_path = os.path.join(os.path.dirname(__file__), ".cursor", "debug.log")
-        if not os.path.exists(os.path.dirname(log_path)):
-            log_path = "/tmp/debug.log"
+        log_dir = os.path.dirname(log_path)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
         with open(log_path, "a") as f:
             f.write(
                 json.dumps(
@@ -135,12 +136,42 @@ def _graphql_entrypoint(request):
         
         context = GraphQLContext(request)
         
+        # #region agent log
+        _log(
+            "grandgold_urls.py:_graphql_entrypoint:before_execute",
+            "Executing GraphQL query",
+            {
+                "hypothesisId": "H1",
+                "queryPreview": (query or "")[:120],
+                "operationName": operation_name,
+                "hasUser": hasattr(context, "user"),
+                "userType": type(getattr(context, "user", None)).__name__,
+            },
+            "H1",
+            run_id="debug-run1",
+        )
+        # #endregion
+
         result = schema.execute(
             query,
             variable_values=variables,
             operation_name=operation_name,
             context_value=context,
         )
+
+        # #region agent log
+        _log(
+            "grandgold_urls.py:_graphql_entrypoint:after_execute",
+            "GraphQL execution finished",
+            {
+                "hypothesisId": "H1",
+                "hasErrors": bool(getattr(result, "errors", None)),
+                "hasData": result.data is not None,
+            },
+            "H1",
+            run_id="debug-run1",
+        )
+        # #endregion
 
         errors = None
         if result.errors:
@@ -162,17 +193,20 @@ def _graphql_entrypoint(request):
         resp["X-Grandgold-Graphql"] = "1"
         return resp
     except Exception as e:
+        # #region agent log
         _log(
             "grandgold_urls.py:graphql",
-            "Extended GraphQL endpoint not available",
+            "Extended GraphQL endpoint exception",
             {
+                "hypothesisId": "H1",
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "schema_error": _schema_import_error,
             },
             "H1",
-            run_id="runtime",
+            run_id="debug-run1",
         )
+        # #endregion
         return JsonResponse(
             {
                 "error": "Extended GraphQL endpoint not available",

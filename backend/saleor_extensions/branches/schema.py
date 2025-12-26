@@ -3,9 +3,37 @@ GraphQL schema for branches
 """
 import graphene
 from django.core.exceptions import ValidationError
+import json
+import os
+import time
 
 from saleor_extensions.branches.models import Branch
 from saleor_extensions.regions.models import Region
+
+LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".cursor", "debug.log")
+
+
+# #region agent log
+def _agent_log(location, message, data, hypothesis_id):
+    try:
+        abs_path = os.path.abspath(LOG_PATH)
+        log_dir = os.path.dirname(abs_path)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+        entry = {
+            "sessionId": "debug-session",
+            "runId": "debug-run1",
+            "hypothesisId": hypothesis_id,
+            "location": location,
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open(abs_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 # Try to import BaseMutation, DateTime, JSON, and Decimal from Saleor, fallback to graphene
 try:
@@ -192,6 +220,14 @@ class BranchQueries(graphene.ObjectType):
     
     def resolve_branches(self, info, region_code=None, is_active=None):
         """Resolve branches query"""
+        # #region agent log
+        _agent_log(
+            "branches/schema.py:resolve_branches:entry",
+            "Resolve branches called",
+            {"hypothesisId": "H2", "region_code": region_code, "is_active": is_active},
+            "H2",
+        )
+        # #endregion
         queryset = Branch.objects.select_related('region').all()
         
         if region_code:
@@ -200,6 +236,14 @@ class BranchQueries(graphene.ObjectType):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active)
         
+        # #region agent log
+        _agent_log(
+            "branches/schema.py:resolve_branches:exit",
+            "Resolve branches returning",
+            {"hypothesisId": "H2", "count": queryset.count()},
+            "H2",
+        )
+        # #endregion
         return queryset
     
     def resolve_branch(self, info, id=None, code=None):
@@ -279,10 +323,35 @@ class BranchCreate(BaseMutation):
                 operating_hours=operating_hours,
             )
             
+            # #region agent log
+            _agent_log(
+                "branches/schema.py:BranchCreate:success",
+                "Branch created successfully",
+                {"hypothesisId": "H3", "branch_id": branch.id, "region_id": region_id},
+                "H3",
+            )
+            # #endregion
+            
             return BranchCreate(branch=branch, errors=None)
         except ValidationError as e:
+            # #region agent log
+            _agent_log(
+                "branches/schema.py:BranchCreate:validation_error",
+                "Validation error during branch create",
+                {"hypothesisId": "H3", "error": str(e)},
+                "H3",
+            )
+            # #endregion
             return BranchCreate(branch=None, errors=[Error(field='__all__', message=str(e))])
         except Exception as e:
+            # #region agent log
+            _agent_log(
+                "branches/schema.py:BranchCreate:exception",
+                "Unexpected error during branch create",
+                {"hypothesisId": "H3", "error": str(e)},
+                "H3",
+            )
+            # #endregion
             return BranchCreate(branch=None, errors=[Error(field='__all__', message=str(e))])
 
 
