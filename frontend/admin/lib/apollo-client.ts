@@ -85,14 +85,26 @@ if (typeof window !== 'undefined') {
 // Auth link to add authentication tokens
 const authLink = setContext((_, { headers }) => {
   // Get the authentication token from local storage or environment variable
-  const token = typeof window !== 'undefined' 
-    ? localStorage.getItem('authToken') || process.env.NEXT_PUBLIC_AUTH_TOKEN
-    : null;
+  let token: string | null = null;
+  
+  if (typeof window !== 'undefined') {
+    token = localStorage.getItem('authToken');
+  }
+  
+  // Fallback to environment variable if localStorage is empty
+  if (!token && process.env.NEXT_PUBLIC_AUTH_TOKEN) {
+    token = process.env.NEXT_PUBLIC_AUTH_TOKEN;
+  }
+  
+  // Only use token if it's a non-empty string
+  const authHeader = token && token.trim() !== '' 
+    ? `Bearer ${token}` 
+    : '';
   
   return {
     headers: {
       ...headers,
-      authorization: token ? `Bearer ${token}` : '',
+      authorization: authHeader,
     },
   };
 });
