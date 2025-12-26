@@ -61,6 +61,7 @@ def _mock_graphql_imports():
     sys.modules['saleor.graphql.product.filters.product'] = mock_filters_module
     
     # Also ensure parent modules exist to prevent import chain failures
+    # Create proper package structure with __path__ attribute
     for parent_name in [
         'saleor.graphql.product.filters',
         'saleor.graphql.product',
@@ -68,12 +69,18 @@ def _mock_graphql_imports():
     ]:
         if parent_name not in sys.modules:
             parent_module = ModuleType(parent_name)
+            # Make it a package by adding __path__
+            parent_module.__path__ = []
             sys.modules[parent_name] = parent_module
         # If parent is partially initialized, replace it
         elif hasattr(sys.modules[parent_name], '__file__') and 'partially initialized' in str(getattr(sys.modules[parent_name], '__doc__', '')):
             del sys.modules[parent_name]
             parent_module = ModuleType(parent_name)
+            parent_module.__path__ = []
             sys.modules[parent_name] = parent_module
+        # Ensure __path__ exists for package imports
+        elif not hasattr(sys.modules[parent_name], '__path__'):
+            sys.modules[parent_name].__path__ = []
     
     # Use importlib's import_module wrapper to catch ImportError and return mock
     _original_import_module = importlib.import_module
@@ -395,14 +402,17 @@ def fake_problematic_migrations():
         try:
             # Check if migration is already recorded
             recorder = MigrationRecorder(connection)
-            if recorder.applied_migrations.filter(app=app, name=migration).exists():
+            # applied_migrations is a method that returns a queryset, not a manager
+            from django.db.migrations.recorder import Migration
+            existing = Migration.objects.using(connection.alias).filter(app=app, name=migration).exists()
+            if existing:
                 print(f"✅ {app}.{migration} already recorded as applied")
                 continue
             
             # Mark as applied directly in database without loading migration file
             print(f"🔧 Marking {app}.{migration} as applied (skipping import to avoid GraphQL circular import)...")
             with transaction.atomic():
-                recorder.record_applied(app, migration)
+                Migration.objects.using(connection.alias).get_or_create(app=app, name=migration)
             print(f"✅ {app}.{migration} marked as applied")
             _log(
                 "smart_migrate.py:fake_problematic_migrations",
