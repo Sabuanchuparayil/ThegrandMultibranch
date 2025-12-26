@@ -14,10 +14,10 @@ from django.db import migrations
 
 def _load_upstream():
     try:
-        from saleor.permission.migrations.0002_alter_permission_content_type import (  # noqa: WPS433
-            Migration as UpstreamMigration,
-        )
-        return UpstreamMigration
+        import importlib
+
+        module = importlib.import_module("saleor.permission.migrations.0002_alter_permission_content_type")
+        return getattr(module, "Migration", None)
     except Exception:
         return None
 
