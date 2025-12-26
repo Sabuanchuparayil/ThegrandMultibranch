@@ -54,8 +54,10 @@ def add_search_columns():
         
         changes = []
         
-        # Define all search-related columns that Saleor might need
-        search_columns = [
+        # Define all columns that Saleor's GraphQL queries might need
+        # This includes search columns and timestamp columns
+        required_columns = [
+            # Search-related columns
             {
                 'name': 'search_document',
                 'type': 'tsvector',
@@ -72,10 +74,17 @@ def add_search_columns():
                 'default': 'DEFAULT false',
                 'description': 'Flag to track if search index needs rebuilding'
             },
+            # Timestamp columns (Saleor uses these for product queries)
+            {
+                'name': 'created_at',
+                'type': 'timestamp with time zone',
+                'default': 'DEFAULT CURRENT_TIMESTAMP',
+                'description': 'Product creation timestamp'
+            },
         ]
         
         # Add each column if it doesn't exist
-        for col in search_columns:
+        for col in required_columns:
             if not check_column_exists("product_product", col['name']):
                 print(f"🔧 Adding {col['name']} column ({col['description']})...")
                 with connection.cursor() as cursor:
@@ -109,8 +118,8 @@ def add_search_columns():
 
 if __name__ == '__main__':
     print("=" * 80)
-    print("FIXING MISSING SEARCH COLUMNS")
-    print("Adding: search_document, search_vector, search_index_dirty")
+    print("FIXING MISSING PRODUCT COLUMNS")
+    print("Adding: search_document, search_vector, search_index_dirty, created_at")
     print("=" * 80)
     
     with transaction.atomic():
