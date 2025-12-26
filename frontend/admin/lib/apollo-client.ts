@@ -1,4 +1,4 @@
-import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, from, type FetchPolicy, type WatchQueryFetchPolicy } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
@@ -129,6 +129,32 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 });
 
 // Create Apollo Client
+// #region agent log
+// Type-safe default options configuration
+// Using explicit type assertions to ensure TypeScript recognizes the literal types
+const defaultOptionsConfig: {
+  watchQuery: {
+    errorPolicy: 'all';
+    fetchPolicy: WatchQueryFetchPolicy;
+    nextFetchPolicy: WatchQueryFetchPolicy;
+  };
+  query: {
+    errorPolicy: 'all';
+    fetchPolicy: FetchPolicy;
+  };
+} = {
+  watchQuery: {
+    errorPolicy: 'all',
+    fetchPolicy: 'cache-first' as WatchQueryFetchPolicy,
+    nextFetchPolicy: 'cache-first' as WatchQueryFetchPolicy,
+  },
+  query: {
+    errorPolicy: 'all',
+    fetchPolicy: 'cache-first' as FetchPolicy,
+  },
+};
+// #endregion
+
 export const apolloClient = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache({
@@ -140,18 +166,8 @@ export const apolloClient = new ApolloClient({
       },
     },
   }),
-  defaultOptions: {
-    watchQuery: {
-      errorPolicy: 'all',
-      fetchPolicy: 'cache-first' as const, // Use cache when available, then fetch from network if not in cache
-      nextFetchPolicy: 'cache-first' as const, // Use cache-first for subsequent requests
-    },
-    query: {
-      errorPolicy: 'all',
-      fetchPolicy: 'cache-first' as const, // Use cache when available, then fetch from network if not in cache
-    },
-  },
-  // Disable error logging in production to reduce noise
-  connectToDevTools: process.env.NODE_ENV === 'development',
+  defaultOptions: defaultOptionsConfig,
+  // DevTools configuration (Apollo Client 3.14+ uses devtools.enabled instead of connectToDevTools)
+  ...(process.env.NODE_ENV === 'development' ? { devtools: { enabled: true } } : {}),
 });
 
