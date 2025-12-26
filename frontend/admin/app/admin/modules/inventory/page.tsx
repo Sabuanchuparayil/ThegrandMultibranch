@@ -7,7 +7,7 @@ import { useErrorCache } from '@/hooks/useErrorCache';
 
 const GET_BRANCH_INVENTORY = gql`
   query GetBranchInventory($branchId: ID, $search: String, $lowStockOnly: Boolean) {
-    branchInventory(branchId: $branchId, lowStockOnly: $lowStockOnly) {
+    branchInventory(branchId: $branchId, search: $search, lowStockOnly: $lowStockOnly) {
       id
       quantity
       availableQuantity
@@ -40,6 +40,7 @@ export default function InventoryModule() {
   const { data, loading, error } = useQuery(GET_BRANCH_INVENTORY, {
     variables: {
       branchId: selectedBranch,
+      search: searchTerm || null,
       lowStockOnly,
     },
     fetchPolicy: 'cache-first',
@@ -47,6 +48,29 @@ export default function InventoryModule() {
     notifyOnNetworkStatusChange: false,
     skip: false, // Always try to fetch, but fallback to mock data
   });
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'inventory/page.tsx:useQuery:variables',
+        message: 'Inventory query variables snapshot',
+        data: {
+          hypothesisId: 'H1',
+          hasBranchId: Boolean(selectedBranch),
+          lowStockOnly,
+          searchLen: (searchTerm || '').length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H1',
+      }),
+    }).catch(() => {});
+  }, [selectedBranch, lowStockOnly, searchTerm]);
+  // #endregion
 
   // Error caching mechanism
   const { shouldShowError, handleError, clearError } = useErrorCache({
@@ -66,6 +90,29 @@ export default function InventoryModule() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error]); // Only depend on error, handleError is stable
+
+  // #region agent log
+  useEffect(() => {
+    if (!error) return;
+    fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'inventory/page.tsx:useQuery:error',
+        message: 'Inventory query error',
+        data: {
+          hypothesisId: 'H3',
+          message: (error as any)?.message,
+          hasNetworkError: Boolean((error as any)?.networkError),
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H3',
+      }),
+    }).catch(() => {});
+  }, [error]);
+  // #endregion
 
   // Mock data fallback
   const mockInventory = [

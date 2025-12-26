@@ -383,6 +383,27 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
         isActive: formData.isActive,
       };
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'branches/page.tsx:BranchFormModal:handleSubmit:input',
+          message: 'Branch submit input snapshot (redacted)',
+          data: {
+            hypothesisId: 'H4',
+            mode: branch ? 'update' : 'create',
+            regionId: input.regionId,
+            code: input.code,
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H4',
+        }),
+      }).catch(() => {});
+      // #endregion
+
       if (branch) {
         // Update existing branch
         const { data } = await updateBranch({
@@ -413,6 +434,27 @@ function BranchFormModal({ branch, onClose, onSuccess }: any) {
         const { data } = await createBranch({
           variables: { input },
         });
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'branches/page.tsx:BranchFormModal:handleSubmit:result',
+            message: 'Branch create result snapshot',
+            data: {
+              hypothesisId: 'H4',
+              hasBranch: Boolean((data as any)?.branchCreate?.branch?.id),
+              errorCount: ((data as any)?.branchCreate?.errors || []).length,
+              firstError: ((data as any)?.branchCreate?.errors || [])[0]?.message,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'H4',
+          }),
+        }).catch(() => {});
+        // #endregion
 
         if (data?.branchCreate?.branch) {
           toast.success('Branch created successfully');

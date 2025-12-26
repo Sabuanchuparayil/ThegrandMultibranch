@@ -2,6 +2,28 @@ import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/clien
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 
+// #region agent log
+const _debugLog = (location: string, message: string, data: Record<string, any>, hypothesisId: string) => {
+  try {
+    fetch('http://127.0.0.1:7242/ingest/656e30d1-6cbf-4cc6-b44b-8482a46107f4', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location,
+        message,
+        data: { ...data, hypothesisId },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId,
+      }),
+    }).catch(() => {});
+  } catch {
+    // ignore
+  }
+};
+// #endregion
+
 // Get GraphQL URL from environment or use Railway backend URL
 const getGraphQLUrl = () => {
   // Priority: Environment variable > Railway backend URL > localhost
@@ -45,6 +67,20 @@ const authLink = setContext((_, { headers }) => {
 // and our error cache system prevents showing the same error repeatedly
 const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
   if (graphQLErrors) {
+    // #region agent log
+    _debugLog(
+      'apollo-client.ts:errorLink:graphQLErrors',
+      'Apollo GraphQL errors',
+      {
+        operationName: operation?.operationName,
+        url: operation?.getContext()?.uri || 'unknown',
+        errorMessages: graphQLErrors.map((e) => e.message).slice(0, 5),
+        variablesKeys: Object.keys(operation?.variables || {}),
+      },
+      'H2'
+    );
+    // #endregion
+
     graphQLErrors.forEach(({ message, locations, path }) => {
       console.error(
         `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
@@ -53,6 +89,21 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
   }
 
   if (networkError) {
+    // #region agent log
+    _debugLog(
+      'apollo-client.ts:errorLink:networkError',
+      'Apollo network error',
+      {
+        operationName: operation?.operationName,
+        url: operation?.getContext()?.uri || 'unknown',
+        statusCode: 'statusCode' in networkError ? (networkError as any).statusCode : 'unknown',
+        message: (networkError as any)?.message,
+        variablesKeys: Object.keys(operation?.variables || {}),
+      },
+      'H5'
+    );
+    // #endregion
+
     // Log network errors with full details for debugging
     const errorMessage = networkError.message || 'Network error';
     const errorStatus = 'statusCode' in networkError ? networkError.statusCode : 'unknown';
