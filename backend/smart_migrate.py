@@ -35,6 +35,33 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Mock GraphQL imports during migration loading to avoid circular import errors.
+# Some Saleor migrations try to import GraphQL schema classes at import time,
+# which can cause "partially initialized module" errors during django.setup().
+def _mock_graphql_imports():
+    """Mock GraphQL product filter imports to prevent circular import during migrations."""
+    import sys
+    from types import ModuleType
+    
+    # Create a mock module for saleor.graphql.product.filters.product
+    mock_filters_module = ModuleType('saleor.graphql.product.filters.product')
+    
+    # Create a mock ProductFilterInput class
+    class MockProductFilterInput:
+        pass
+    
+    mock_filters_module.ProductFilterInput = MockProductFilterInput
+    
+    # Insert the mock into sys.modules before django.setup()
+    sys.modules['saleor.graphql.product.filters.product'] = mock_filters_module
+    
+    # Also mock the parent module if needed
+    if 'saleor.graphql.product.filters' not in sys.modules:
+        mock_parent = ModuleType('saleor.graphql.product.filters')
+        sys.modules['saleor.graphql.product.filters'] = mock_parent
+
+_mock_graphql_imports()
+
 django.setup()
 
 import json
