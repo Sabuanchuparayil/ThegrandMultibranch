@@ -118,14 +118,29 @@ def _graphql_entrypoint(request):
                 self.app = getattr(request, "app", None)
                 user = getattr(request, "user", None)
                 if user is None:
-                    class _Anonymous:
-                        is_authenticated = False
-                        is_anonymous = True
+                    try:
+                        # Prefer Django's built-in AnonymousUser (implements has_perm/has_perms/etc)
+                        from django.contrib.auth.models import AnonymousUser  # type: ignore
 
-                        def __getattr__(self, item):
-                            raise AttributeError(item)
+                        self.user = AnonymousUser()
+                    except Exception:
+                        # Fallback stub (must NOT raise AttributeError for permission checks)
+                        class _Anonymous:
+                            is_authenticated = False
+                            is_anonymous = True
+                            is_staff = False
+                            is_active = False
 
-                    self.user = _Anonymous()
+                            def has_perm(self, _perm, _obj=None):
+                                return False
+
+                            def has_perms(self, _perm_list, _obj=None):
+                                return False
+
+                            def has_module_perms(self, _app_label):
+                                return False
+
+                        self.user = _Anonymous()
                 else:
                     self.user = user
 

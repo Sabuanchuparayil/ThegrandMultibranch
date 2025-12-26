@@ -14,15 +14,13 @@ const GET_PRODUCTS = gql`
           name
           slug
           description
-          isPublished
-          variants {
+          channelListings {
+            isPublished
+          }
+          productVariants {
             id
             name
             sku
-            price {
-              amount
-              currency
-            }
           }
         }
       }
@@ -70,9 +68,9 @@ export default function ProductsModule() {
 
   // Mock data fallback
   const mockProducts = [
-    { id: '1', name: 'Gold Ring 22K', slug: 'gold-ring-22k', description: 'Beautiful gold ring', isPublished: true, variants: [{ id: '1', name: 'Size 6', sku: 'GR22K-6', price: { amount: 250000, currency: 'GBP' } }] },
-    { id: '2', name: 'Diamond Necklace', slug: 'diamond-necklace', description: 'Elegant diamond necklace', isPublished: true, variants: [{ id: '2', name: 'Standard', sku: 'DN-STD', price: { amount: 500000, currency: 'GBP' } }] },
-    { id: '3', name: 'Silver Bracelet', slug: 'silver-bracelet', description: 'Classic silver bracelet', isPublished: false, variants: [{ id: '3', name: 'Medium', sku: 'SB-M', price: { amount: 120000, currency: 'GBP' } }] },
+    { id: '1', name: 'Gold Ring 22K', slug: 'gold-ring-22k', description: 'Beautiful gold ring', channelListings: [{ isPublished: true }], productVariants: [{ id: '1', name: 'Size 6', sku: 'GR22K-6' }] },
+    { id: '2', name: 'Diamond Necklace', slug: 'diamond-necklace', description: 'Elegant diamond necklace', channelListings: [{ isPublished: true }], productVariants: [{ id: '2', name: 'Standard', sku: 'DN-STD' }] },
+    { id: '3', name: 'Silver Bracelet', slug: 'silver-bracelet', description: 'Classic silver bracelet', channelListings: [{ isPublished: false }], productVariants: [{ id: '3', name: 'Medium', sku: 'SB-M' }] },
   ];
 
   // Get products from API or fallback to mock data
@@ -192,12 +190,7 @@ export default function ProductsModule() {
                   </tr>
                 ) : (
                   products.map((product: any) => {
-                    const variants = product.variants || [];
-                    const prices = variants
-                      .map((v: any) => parseFloat(v.price?.amount || 0))
-                      .filter((p: number) => p > 0);
-                    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                    const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+                    const variants = product.productVariants || [];
 
                     return (
                       <tr key={product.id} className="hover:bg-gray-50">
@@ -211,23 +204,10 @@ export default function ProductsModule() {
                           {variants.length} variant{variants.length !== 1 ? 's' : ''}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {minPrice > 0 ? (
-                            <>
-                              {new Intl.NumberFormat('en-GB', {
-                                style: 'currency',
-                                currency: variants[0]?.price?.currency || 'GBP',
-                              }).format(minPrice / 100)}
-                              {minPrice !== maxPrice && ` - ${new Intl.NumberFormat('en-GB', {
-                                style: 'currency',
-                                currency: variants[0]?.price?.currency || 'GBP',
-                              }).format(maxPrice / 100)}`}
-                            </>
-                          ) : (
-                            'N/A'
-                          )}
+                          N/A
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {product.isPublished ? (
+                          {Boolean(product?.channelListings?.[0]?.isPublished) ? (
                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                               Published
                             </span>
