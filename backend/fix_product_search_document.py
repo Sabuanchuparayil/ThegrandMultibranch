@@ -40,7 +40,13 @@ def check_table_exists(table_name):
         return cursor.fetchone()[0]
 
 def add_search_columns():
-    """Add search_document and search_vector columns to product_product table if they don't exist"""
+    """Add all search-related columns to product_product table if they don't exist.
+    
+    Saleor requires multiple search columns for full-text search functionality:
+    - search_document: tsvector for full-text search indexing
+    - search_vector: tsvector for full-text search indexing (alternative/additional)
+    - search_index_dirty: boolean flag to track if search index needs rebuilding
+    """
     try:
         if not check_table_exists("product_product"):
             print("❌ Table product_product does not exist. Run migrations first.")
@@ -48,32 +54,46 @@ def add_search_columns():
         
         changes = []
         
-        # Add search_document column (tsvector for full-text search)
-        if not check_column_exists("product_product", "search_document"):
-            print("🔧 Adding search_document column to product_product table...")
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    ALTER TABLE product_product 
-                    ADD COLUMN IF NOT EXISTS search_document tsvector;
-                """)
-            changes.append("search_document")
-            print("✅ Successfully added search_document column")
-        else:
-            print("✅ Column search_document already exists")
+        # Define all search-related columns that Saleor might need
+        search_columns = [
+            {
+                'name': 'search_document',
+                'type': 'tsvector',
+                'description': 'Full-text search document (tsvector)'
+            },
+            {
+                'name': 'search_vector',
+                'type': 'tsvector',
+                'description': 'Full-text search vector (tsvector)'
+            },
+            {
+                'name': 'search_index_dirty',
+                'type': 'boolean',
+                'default': 'DEFAULT false',
+                'description': 'Flag to track if search index needs rebuilding'
+            },
+        ]
         
-        # Add search_vector column (tsvector for full-text search)
-        # Note: Some Saleor versions use search_vector instead of or in addition to search_document
-        if not check_column_exists("product_product", "search_vector"):
-            print("🔧 Adding search_vector column to product_product table...")
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    ALTER TABLE product_product 
-                    ADD COLUMN IF NOT EXISTS search_vector tsvector;
-                """)
-            changes.append("search_vector")
-            print("✅ Successfully added search_vector column")
-        else:
-            print("✅ Column search_vector already exists")
+        # Add each column if it doesn't exist
+        for col in search_columns:
+            if not check_column_exists("product_product", col['name']):
+                print(f"🔧 Adding {col['name']} column ({col['description']})...")
+                with connection.cursor() as cursor:
+                    default_clause = col.get('default', '')
+                    if default_clause:
+                        cursor.execute(f"""
+                            ALTER TABLE product_product 
+                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {default_clause};
+                        """)
+                    else:
+                        cursor.execute(f"""
+                            ALTER TABLE product_product 
+                            ADD COLUMN IF NOT EXISTS {col['name']} {col['type']};
+                        """)
+                changes.append(col['name'])
+                print(f"✅ Successfully added {col['name']} column")
+            else:
+                print(f"✅ Column {col['name']} already exists")
         
         if changes:
             print(f"\n✅ Added {len(changes)} column(s): {', '.join(changes)}")
@@ -89,7 +109,8 @@ def add_search_columns():
 
 if __name__ == '__main__':
     print("=" * 80)
-    print("FIXING MISSING SEARCH COLUMNS (search_document, search_vector)")
+    print("FIXING MISSING SEARCH COLUMNS")
+    print("Adding: search_document, search_vector, search_index_dirty")
     print("=" * 80)
     
     with transaction.atomic():
