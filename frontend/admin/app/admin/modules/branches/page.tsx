@@ -15,6 +15,7 @@ const GET_BRANCHES = gql`
       name
       code
       region {
+        id
         name
         code
       }

@@ -319,6 +319,7 @@ class GrandGoldQueries(graphene.ObjectType):
                 "regions": _table_exists("regions"),
                 "branches": _table_exists("branches"),
                 "branch_inventory": _table_exists("branch_inventory"),
+                "channel_channel": _table_exists("channel_channel"),
                 "django_migrations": _table_exists("django_migrations"),
             }
 
@@ -332,7 +333,7 @@ class GrandGoldQueries(graphene.ObjectType):
                     else:
                         app_label = getattr(m, "app", None)
                         mig_name = getattr(m, "name", None)
-                    if app_label in {"inventory", "branches", "regions", "product"}:
+                    if app_label in {"inventory", "branches", "regions", "product", "channel"}:
                         applied.append(f"{app_label}.{mig_name}")
             except Exception as e:
                 applied = [f"ERROR:{type(e).__name__}:{str(e)}"]

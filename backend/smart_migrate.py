@@ -62,6 +62,39 @@ def check_column_exists(table_name, column_name):
         """, [table_name, column_name])
         return cursor.fetchone()[0]
 
+def ensure_saleor_channel_tables():
+    """
+    Products queries require Saleor Channels. If `channel_channel` is missing, try to migrate the `channel` app.
+    """
+    try:
+        if check_table_exists("channel_channel"):
+            _log("smart_migrate.py:ensure_channel", "channel_channel table exists", {}, "H14")
+            return True
+
+        _log("smart_migrate.py:ensure_channel", "channel_channel missing; migrating channel app", {}, "H14")
+        try:
+            call_command("migrate", "channel", verbosity=2, interactive=False)
+        except Exception as e:
+            _log(
+                "smart_migrate.py:ensure_channel",
+                "channel migrate failed",
+                {"error": str(e), "error_type": type(e).__name__},
+                "H14",
+            )
+            return False
+
+        ok = check_table_exists("channel_channel")
+        _log("smart_migrate.py:ensure_channel", "channel_channel after migrate", {"exists": ok}, "H14")
+        return ok
+    except Exception as e:
+        _log(
+            "smart_migrate.py:ensure_channel",
+            "ensure channel exception",
+            {"error": str(e), "error_type": type(e).__name__},
+            "H14",
+        )
+        return False
+
 def fake_problematic_migrations():
     """Mark known problematic migrations as fake"""
     problematic_migrations = [
@@ -276,6 +309,7 @@ def main():
             migrate_custom_apps()
             seed_default_regions()
             ensure_saleor_productvariant_columns()
+            ensure_saleor_channel_tables()
             
             print("\n" + "=" * 80)
             print("⚠️  Some Saleor migrations failed, but custom app migrations completed")
@@ -293,6 +327,7 @@ def main():
     
     seed_default_regions()
     ensure_saleor_productvariant_columns()
+    ensure_saleor_channel_tables()
     missing = _verify_custom_tables()
     if missing:
         print("\n⚠️  Some custom app tables are missing - retrying custom app migrations")
