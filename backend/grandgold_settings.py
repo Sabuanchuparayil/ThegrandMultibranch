@@ -675,11 +675,29 @@ try:
             _cfg = _DjangoAppConfig.create(_entry)
             _label = getattr(_cfg, "label", None) or _entry
         except Exception:
-            # If we can't resolve it here, let Django handle it later.
+            # If we can't resolve it here, fall back to a conservative heuristic.
+            # This is important for apps that fail import at settings-eval time but
+            # would later resolve to a label that conflicts (e.g. "auth").
             _cfg = None
-            _label = _entry
+            if _entry == "auth" or _entry.endswith(".auth") or ".auth." in _entry:
+                _label = "auth"
+            else:
+                _label = _entry
 
         if _label in _seen_labels:
+            # Prefer Django's auth app if there's a conflict on "auth".
+            if _label == "auth":
+                kept = _seen_labels[_label]
+                prefer_new = _entry.startswith("django.contrib.auth")
+                prefer_kept = isinstance(kept, str) and kept.startswith("django.contrib.auth")
+                if prefer_new and not prefer_kept:
+                    # Replace the kept entry with django.contrib.auth variant
+                    _removed.append({"entry": kept, "label": _label, "kept": _entry, "replaced": True})
+                    # Replace in deduped list
+                    _deduped = [x for x in _deduped if x != kept]
+                    _seen_labels[_label] = _entry
+                    _deduped.append(_entry)
+                    continue
             _removed.append({"entry": _entry, "label": _label, "kept": _seen_labels[_label]})
             continue
         _seen_labels[_label] = _entry
