@@ -114,25 +114,16 @@ def _graphql_entrypoint(request):
         class GraphQLContext:
             """Context wrapper for GraphQL execution"""
             def __init__(self, request):
-                # Copy all attributes from request to make it request-like
-                # This allows Saleor's resolvers to access request attributes
-                for attr in dir(request):
-                    if not attr.startswith('_') and not callable(getattr(request, attr, None)):
-                        try:
-                            setattr(self, attr, getattr(request, attr))
-                        except:
-                            pass
-                # Store request reference
                 self.request = request
-                # Saleor expects 'app' attribute (can be None)
-                self.app = None
-                # Saleor expects 'user' attribute (BaseMutation uses info.context.user)
-                if hasattr(request, 'user'):
-                    self.user = request.user
-                else:
-                    # Use anonymous user if not authenticated
+                self.app = getattr(request, "app", None)
+                try:
+                    self.user = getattr(request, "user")
+                except Exception:
                     from django.contrib.auth.models import AnonymousUser
                     self.user = AnonymousUser()
+
+            def __getattr__(self, item):
+                return getattr(self.request, item)
         
         context = GraphQLContext(request)
         
