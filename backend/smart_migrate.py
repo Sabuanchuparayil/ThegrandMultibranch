@@ -95,7 +95,8 @@ def ensure_saleor_channel_tables():
                     {"error": str(e2), "error_type": type(e2).__name__},
                     "H14",
                 )
-                return False
+                # Fall through to schema_editor create_model fallback
+                pass
         except Exception as e:
             _log(
                 "smart_migrate.py:ensure_channel",
@@ -103,9 +104,46 @@ def ensure_saleor_channel_tables():
                 {"error": str(e), "error_type": type(e).__name__},
                 "H14",
             )
-            return False
+            # Fall through to schema_editor create_model fallback
+            pass
 
         ok = check_table_exists("channel_channel")
+        if not ok:
+            print("⚠️  channel_channel still missing; attempting schema_editor.create_model(Channel) fallback...")
+            try:
+                from saleor.channel.models import Channel  # noqa: WPS433
+                from django.db import connection as _conn
+
+                with _conn.schema_editor() as schema_editor:
+                    schema_editor.create_model(Channel)
+                ok = check_table_exists("channel_channel")
+                if ok:
+                    # Ensure at least one channel exists so products queries can resolve
+                    try:
+                        from django.conf import settings as dj_settings
+
+                        default_slug = getattr(dj_settings, "DEFAULT_CHANNEL_SLUG", "default-channel")
+                        default_currency = os.environ.get("DEFAULT_CURRENCY") or getattr(dj_settings, "DEFAULT_CURRENCY", "USD")
+                        default_country = os.environ.get("DEFAULT_COUNTRY", "US")
+                        Channel.objects.get_or_create(
+                            slug=default_slug,
+                            defaults={
+                                "name": "Default channel",
+                                "is_active": True,
+                                "currency_code": default_currency,
+                                "default_country": default_country,
+                            },
+                        )
+                    except Exception:
+                        pass
+            except Exception as e3:
+                _log(
+                    "smart_migrate.py:ensure_channel",
+                    "schema_editor fallback failed",
+                    {"error": str(e3), "error_type": type(e3).__name__},
+                    "H14",
+                )
+                ok = False
         print(f"✅ channel_channel exists after migrate: {ok}")
         _log("smart_migrate.py:ensure_channel", "channel_channel after migrate", {"exists": ok}, "H14")
         return ok

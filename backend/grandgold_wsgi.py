@@ -114,9 +114,15 @@ if os.environ.get('DATABASE_URL'):
             # Show the actual error for debugging
             error_output = result.stderr or result.stdout or "No error output"
             print(f"⚠️  Migration subprocess failed (exit code {result.returncode})")
-            # Print full error (up to 2000 chars to see more context)
-            print(f"   STDOUT: {result.stdout[:2000] if result.stdout else '(empty)'}")
-            print(f"   STDERR: {error_output[:2000] if error_output else '(empty)'}")
+            # Print a tail of stdout/stderr to capture the actual failure cause (often near the end)
+            if result.stdout:
+                print("----- smart_migrate.py STDOUT (tail) -----")
+                print(result.stdout[-6000:])
+                print("----- end smart_migrate.py STDOUT -----")
+            if error_output:
+                print("----- smart_migrate.py STDERR (tail) -----")
+                print(error_output[-6000:])
+                print("----- end smart_migrate.py STDERR -----")
             print("   This might be OK if migrations were already run during build")
     except Exception as e:
         error_msg = str(e).lower()
