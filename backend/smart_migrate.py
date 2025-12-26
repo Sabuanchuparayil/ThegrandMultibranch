@@ -37,6 +37,51 @@ def _log(location, message, data, hypothesis_id="H7"):
     except Exception:
         pass
 
+def ensure_postgres_extensions():
+    """
+    Saleor relies on some PostgreSQL extensions for search / indexing.
+    If they are missing, migrations (especially `product`) can fail or later queries can break.
+    """
+    # #region agent log
+    _log(
+        "smart_migrate.py:ensure_postgres_extensions:entry",
+        "Ensuring required PostgreSQL extensions",
+        {"hypothesisId": "H18"},
+        "H18",
+    )
+    # #endregion
+    extensions = ["pg_trgm", "unaccent", "btree_gin"]
+    ok = []
+    failed = []
+    try:
+        with connection.cursor() as cursor:
+            for ext in extensions:
+                try:
+                    cursor.execute(f"CREATE EXTENSION IF NOT EXISTS {ext};")
+                    ok.append(ext)
+                except Exception as e:
+                    failed.append({"ext": ext, "error": str(e), "error_type": type(e).__name__})
+        if failed:
+            print(f"⚠️  Could not enable some PostgreSQL extensions: {failed}")
+        else:
+            print(f"✅ PostgreSQL extensions ensured: {ok}")
+        _log(
+            "smart_migrate.py:ensure_postgres_extensions:result",
+            "PostgreSQL extensions ensured",
+            {"ok": ok, "failed": failed, "hypothesisId": "H18"},
+            "H18",
+        )
+        return len(failed) == 0
+    except Exception as e:
+        _log(
+            "smart_migrate.py:ensure_postgres_extensions:exception",
+            "Failed ensuring PostgreSQL extensions",
+            {"error": str(e), "error_type": type(e).__name__, "hypothesisId": "H18"},
+            "H18",
+        )
+        print(f"⚠️  Failed ensuring PostgreSQL extensions: {e}")
+        return False
+
 def check_table_exists(table_name):
     """Check if a table exists in the database"""
     with connection.cursor() as cursor:
@@ -266,7 +311,15 @@ def _verify_custom_tables():
     return missing
 
 def _verify_required_saleor_tables():
-    required = ["channel_channel"]
+    # These are core tables Saleor's GraphQL resolvers hit for the admin dashboard.
+    # If any are missing, GraphQL can return 400 with "relation ... does not exist".
+    required = [
+        "channel_channel",
+        "product_product",
+        "product_productvariant",
+        "product_productchannellisting",
+        "tax_taxclass",
+    ]
     missing = [t for t in required if not check_table_exists(t)]
     _log(
         "smart_migrate.py:verify_saleor",
@@ -279,6 +332,37 @@ def _verify_required_saleor_tables():
     else:
         print("✅ Required Saleor tables exist")
     return missing
+
+def ensure_saleor_core_apps():
+    """
+    Try to migrate the critical Saleor apps needed by the Admin dashboard.
+    This is safer than trying to "ALTER TABLE" our way out of missing relations.
+    """
+    # #region agent log
+    _log(
+        "smart_migrate.py:ensure_saleor_core_apps:entry",
+        "Ensuring critical Saleor apps are migrated",
+        {"hypothesisId": "H19"},
+        "H19",
+    )
+    # #endregion
+    apps = ["contenttypes", "sites", "core", "channel", "tax", "product", "warehouse"]
+    results = []
+    for app in apps:
+        try:
+            print(f"📦 Ensuring Saleor app migrated: {app}")
+            call_command("migrate", app, verbosity=2, interactive=False)
+            results.append({"app": app, "ok": True})
+        except Exception as e:
+            results.append({"app": app, "ok": False, "error": str(e), "error_type": type(e).__name__})
+            print(f"⚠️  Saleor app migrate failed for {app}: {e}")
+    _log(
+        "smart_migrate.py:ensure_saleor_core_apps:result",
+        "Finished ensuring critical Saleor apps",
+        {"results": results, "hypothesisId": "H19"},
+        "H19",
+    )
+    return results
 
 def ensure_saleor_productvariant_columns():
     """
@@ -348,6 +432,15 @@ def ensure_saleor_product_columns():
     If the DB is behind, product queries can fail with missing column errors.
     This function adds missing columns that are commonly required.
     """
+    # #region agent log
+    _log(
+        "smart_migrate.py:ensure_product_columns:entry",
+        "Starting product_product column repair",
+        {"hypothesisId": "H16"},
+        "H16",
+    )
+    # #endregion
+    
     try:
         if not check_table_exists("product_product"):
             _log(
@@ -357,6 +450,24 @@ def ensure_saleor_product_columns():
                 "H15",
             )
             return False
+
+        # #region agent log
+        # Check current columns before repair
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                AND table_name = 'product_product'
+                ORDER BY column_name;
+            """)
+            existing_columns = [row[0] for row in cursor.fetchall()]
+            _log(
+                "smart_migrate.py:ensure_product_columns:before",
+                "Current product_product columns",
+                {"hypothesisId": "H16", "columns": existing_columns, "count": len(existing_columns)},
+                "H16",
+            )
+        # #endregion
 
         changes = []
         with connection.cursor() as cursor:
@@ -392,6 +503,22 @@ def ensure_saleor_product_columns():
                 )
                 changes.append("description_plaintext")
 
+            # Search/document columns (commonly missing in older DBs)
+            if not check_column_exists("product_product", "search_document"):
+                cursor.execute(
+                    "ALTER TABLE product_product ADD COLUMN IF NOT EXISTS search_document tsvector;"
+                )
+                changes.append("search_document")
+
+        # #region agent log
+        _log(
+            "smart_migrate.py:ensure_product_columns:after",
+            "Product columns repair completed",
+            {"hypothesisId": "H16", "added": changes, "addedCount": len(changes)},
+            "H16",
+        )
+        # #endregion
+
         _log(
             "smart_migrate.py:ensure_product_columns",
             "Ensured product_product columns",
@@ -423,6 +550,9 @@ def main():
         print(f"❌ Database connection failed: {e}")
         _log("smart_migrate.py:db", "database connection failed", {"error": str(e), "error_type": type(e).__name__}, "H7")
         return 1
+
+    # Step 1b: Ensure Postgres extensions commonly required by Saleor
+    ensure_postgres_extensions()
     
     # Step 2: Fix known problematic migrations
     print("\n" + "=" * 80)
@@ -434,25 +564,97 @@ def main():
     print("\n" + "=" * 80)
     print("RUNNING ALL MIGRATIONS")
     print("=" * 80)
+    
+    # #region agent log
+    _log(
+        "smart_migrate.py:migrate_all:entry",
+        "Starting migrate all",
+        {"hypothesisId": "H17"},
+        "H17",
+    )
+    # #endregion
+    
     try:
         call_command('migrate', verbosity=2, interactive=False)
         print("\n✅ All migrations completed successfully")
         _log("smart_migrate.py:migrate_all", "migrate all completed", {}, "H7")
+        
+        # #region agent log
+        _log(
+            "smart_migrate.py:migrate_all:success",
+            "All migrations completed successfully",
+            {"hypothesisId": "H17"},
+            "H17",
+        )
+        # #endregion
     except Exception as e:
         error_str = str(e)
         print(f"\n⚠️  Migration error: {error_str}")
         _log("smart_migrate.py:migrate_all", "migrate all failed", {"error": error_str, "error_type": type(e).__name__}, "H7")
+        
+        # #region agent log
+        _log(
+            "smart_migrate.py:migrate_all:error",
+            "Migration error occurred",
+            {"hypothesisId": "H17", "error": error_str, "errorType": type(e).__name__},
+            "H17",
+        )
+        # #endregion
         
         # If it's a table/column issue, try to migrate custom apps only
         if 'does not exist' in error_str or 'already exists' in error_str:
             print("\n" + "=" * 80)
             print("FALLBACK: MIGRATING CUSTOM APPS ONLY")
             print("=" * 80)
+            
+            # #region agent log
+            _log(
+                "smart_migrate.py:fallback:entry",
+                "Starting fallback: custom apps + product migrations",
+                {"hypothesisId": "H17"},
+                "H17",
+            )
+            # #endregion
+            
             migrate_custom_apps()
             seed_default_regions()
             ensure_saleor_productvariant_columns()
             ensure_saleor_product_columns()
             ensure_saleor_channel_tables()
+            # NEW: force critical Saleor apps to migrate so required tables exist
+            ensure_saleor_core_apps()
+            
+            # Try to run product app migrations explicitly
+            # #region agent log
+            _log(
+                "smart_migrate.py:fallback:product_migrate:entry",
+                "Attempting explicit product app migrations",
+                {"hypothesisId": "H17"},
+                "H17",
+            )
+            # #endregion
+            try:
+                call_command('migrate', 'product', verbosity=2, interactive=False)
+                # #region agent log
+                _log(
+                    "smart_migrate.py:fallback:product_migrate:success",
+                    "Product app migrations completed",
+                    {"hypothesisId": "H17"},
+                    "H17",
+                )
+                # #endregion
+                print("✅ Product app migrations completed")
+            except Exception as e2:
+                # #region agent log
+                _log(
+                    "smart_migrate.py:fallback:product_migrate:error",
+                    "Product app migrations failed",
+                    {"hypothesisId": "H17", "error": str(e2), "errorType": type(e2).__name__},
+                    "H17",
+                )
+                # #endregion
+                print(f"⚠️  Product app migrations failed: {e2}")
+                # Continue anyway - column repair should handle missing columns
             
             print("\n" + "=" * 80)
             print("⚠️  Some Saleor migrations failed, but custom app migrations completed")
@@ -473,6 +675,7 @@ def main():
     ensure_saleor_productvariant_columns()
     ensure_saleor_product_columns()
     ensure_saleor_channel_tables()
+    ensure_saleor_core_apps()
     missing = _verify_custom_tables()
     saleor_missing = _verify_required_saleor_tables()
     if missing:
