@@ -99,6 +99,13 @@ def add_all_product_columns():
                 'default': 'DEFAULT CURRENT_TIMESTAMP',
                 'description': 'Product creation timestamp'
             },
+            {
+                'name': 'available_on',
+                'type': 'timestamp with time zone',
+                'nullable': True,
+                'default': 'DEFAULT NULL',
+                'description': 'Availability datetime (Saleor uses this for channel listings/visibility)'
+            },
             # Note: updated_at should already exist in Saleor's Product model
             
             # ============================================================

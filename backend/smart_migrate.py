@@ -28,6 +28,7 @@ def patch_create_permissions_ignore_duplicates():
     """
     try:
         from django.contrib.auth import management as auth_management
+        from django.db.models.signals import post_migrate
         from django.db import IntegrityError
 
         orig = auth_management.create_permissions
@@ -48,6 +49,20 @@ def patch_create_permissions_ignore_duplicates():
                     return None
                 raise
 
+        # Replace the receiver connected by django.contrib.auth so our wrapper is actually used.
+        try:
+            post_migrate.disconnect(
+                receiver=orig,
+                dispatch_uid="django.contrib.auth.management.create_permissions",
+            )
+        except Exception:
+            pass
+        post_migrate.connect(
+            receiver=safe_create_permissions,
+            dispatch_uid="django.contrib.auth.management.create_permissions",
+        )
+
+        # Keep module attribute consistent for any late imports.
         auth_management.create_permissions = safe_create_permissions
         _log(
             "smart_migrate.py:patch_create_permissions",
