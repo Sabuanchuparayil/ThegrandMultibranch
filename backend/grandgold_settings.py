@@ -657,6 +657,49 @@ for _app in _required_contrib_apps:
         except Exception:
             pass
 
+# Final safety: dedupe by Django app *label* (e.g. "auth") to prevent
+# "Application labels aren't unique, duplicates: auth" from crashing boot.
+# This can happen when both module and AppConfig paths are present (or any other
+# conflicting app that uses the same label).
+try:
+    from django.apps.config import AppConfig as _DjangoAppConfig  # type: ignore
+
+    _seen_labels = {}
+    _deduped = []
+    _removed = []
+    for _entry in INSTALLED_APPS:
+        if not isinstance(_entry, str):
+            _deduped.append(_entry)
+            continue
+        try:
+            _cfg = _DjangoAppConfig.create(_entry)
+            _label = getattr(_cfg, "label", None) or _entry
+        except Exception:
+            # If we can't resolve it here, let Django handle it later.
+            _cfg = None
+            _label = _entry
+
+        if _label in _seen_labels:
+            _removed.append({"entry": _entry, "label": _label, "kept": _seen_labels[_label]})
+            continue
+        _seen_labels[_label] = _entry
+        _deduped.append(_entry)
+
+    if _removed:
+        INSTALLED_APPS = _deduped
+        try:
+            _log_msg(
+                "grandgold_settings.py:ensure_contrib_apps",
+                "Removed duplicate INSTALLED_APPS by label",
+                {"removed": _removed},
+                "H20",
+            )
+        except Exception:
+            pass
+except Exception:
+    # Never fail settings import because of defensive dedupe logic
+    pass
+
 # Ensure MIDDLEWARE exists
 if 'MIDDLEWARE' not in globals():
     MIDDLEWARE = []
