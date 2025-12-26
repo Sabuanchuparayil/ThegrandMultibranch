@@ -960,6 +960,19 @@ except ImportError:
     PLUGINS = [p for p in PLUGINS if 'avatax' not in str(p).lower()]
     globals()['PLUGINS'] = PLUGINS
 
+# Disable optional Saleor plugins during migrations / startup repair scripts to avoid
+# heavy optional deps (e.g. google-cloud-pubsub/grpc) breaking `django.setup()`.
+if os.environ.get("GG_DISABLE_SALEOR_PLUGINS") == "1":
+    globals()["PLUGINS"] = []
+else:
+    # Unless explicitly enabled, disable Saleor's webhook plugin (it pulls google-cloud-pubsub/grpc).
+    if os.environ.get("GG_ENABLE_WEBHOOK_PLUGIN") != "1":
+        _plugins = getattr(globals(), "PLUGINS", [])
+        try:
+            globals()["PLUGINS"] = [p for p in _plugins if "saleor.plugins.webhook" not in str(p)]
+        except Exception:
+            pass
+
 # Media files - use S3 if configured
 if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

@@ -5,6 +5,31 @@ Skips migrations that fail due to missing tables/columns and continues with othe
 """
 import os
 import sys
+
+# During migrations we don't need Saleor plugins (and some optional plugins pull in heavy deps
+# like google-cloud-pubsub/grpc which can fail in minimal containers). Disable them.
+os.environ.setdefault("GG_DISABLE_SALEOR_PLUGINS", "1")
+
+# Ensure native libs are discoverable (grpc can require libstdc++ at import time).
+try:
+    import subprocess
+
+    libstdcxx_dir = (
+        subprocess.run(
+            "find /nix/store -name libstdc++.so.6 2>/dev/null | head -1 | xargs dirname 2>/dev/null",
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        ).stdout.strip()
+    )
+    if libstdcxx_dir:
+        current = os.environ.get("LD_LIBRARY_PATH", "")
+        if libstdcxx_dir not in current:
+            os.environ["LD_LIBRARY_PATH"] = f"{current}:{libstdcxx_dir}" if current else libstdcxx_dir
+except Exception:
+    pass
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'grandgold_settings')
