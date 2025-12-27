@@ -195,8 +195,10 @@ if os.environ.get('DATABASE_URL'):
                 if not os.path.exists(fix_script):
                     fix_script = os.path.join(backend_dir, 'fix_product_search_document.py')
                 
+                # Define script_name before the if block to avoid NameError in exception handlers
+                script_name = os.path.basename(fix_script)
+                
                 if os.path.exists(fix_script):
-                    script_name = os.path.basename(fix_script)
                     print(f"----- Running {script_name} -----")
                     # Set up libmagic path for subprocess
                     script_name_only = os.path.basename(fix_script)
@@ -223,6 +225,8 @@ if os.environ.get('DATABASE_URL'):
                             print(f"STDERR: {result.stderr[:500]}")
                         if result.stdout:
                             print(f"STDOUT: {result.stdout[:500]}")
+                else:
+                    print(f"⚠️  Product column fix script not found: {script_name}")
             except subprocess.TimeoutExpired:
                 print(f"⚠️  {script_name} timed out after 120 seconds")
             except Exception as e:
