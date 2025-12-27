@@ -265,6 +265,41 @@ if os.environ.get('DATABASE_URL'):
                     print(error_output[-6000:])
                     print("----- end smart_migrate.py STDERR -----")
                 print("   This might be OK if migrations were already run during build")
+            
+            # THIRD: Create superuser and generate auth token if needed
+            # This ensures admin user is always available after migrations
+            try:
+                create_user_script = os.path.join(backend_dir, 'create_superuser_if_needed.py')
+                if os.path.exists(create_user_script):
+                    print("----- Running create_superuser_if_needed.py -----")
+                    shell_cmd = (
+                        f"LIB_PATH=$(find /nix/store -name libmagic.so* 2>/dev/null | head -1 | xargs dirname 2>/dev/null); "
+                        f"export LD_LIBRARY_PATH=$LD_LIBRARY_PATH${{LIB_PATH:+:$LIB_PATH}}; "
+                        f"cd {backend_dir} && "
+                        f"{python_cmd} create_superuser_if_needed.py 2>&1"
+                    )
+                    result = subprocess.run(
+                        ['/bin/bash', '-c', shell_cmd],
+                        capture_output=True,
+                        text=True,
+                        timeout=60,
+                        env=subprocess_env,
+                    )
+                    if result.returncode == 0:
+                        print("✅ create_superuser_if_needed.py completed successfully")
+                        if result.stdout:
+                            # Print the full output to show the token
+                            print(result.stdout)
+                    else:
+                        print(f"⚠️  create_superuser_if_needed.py had issues (exit code {result.returncode})")
+                        if result.stdout:
+                            print(f"STDOUT: {result.stdout}")
+                        if result.stderr:
+                            print(f"STDERR: {result.stderr}")
+            except subprocess.TimeoutExpired:
+                print("⚠️  create_superuser_if_needed.py timed out")
+            except Exception as e:
+                print(f"⚠️  Failed to run create_superuser_if_needed.py: {e}")
     except Exception as e:
         error_msg = str(e).lower()
         if 'database' in error_msg or 'connection' in error_msg:
