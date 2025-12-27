@@ -17,14 +17,44 @@ except ImportError:
     class Error(graphene.ObjectType):
         field = graphene.String()
         message = graphene.String()
+        
+        def __init__(self, field=None, message=None):
+            """Initialize Error - store values for both direct access and resolvers"""
+            super().__init__()
+            # Store values in instance dict to bypass descriptor and allow direct access
+            object.__setattr__(self, 'field', field)
+            object.__setattr__(self, 'message', message)
+            # Also store in private attributes for resolvers
+            object.__setattr__(self, '_error_field', field)
+            object.__setattr__(self, '_error_message', message)
+        
+        def resolve_field(self, info):
+            """Resolver for field"""
+            return self._error_field
+        
+        def resolve_message(self, info):
+            """Resolver for message"""
+            return self._error_message
     
     class BaseMutation(graphene.Mutation):
+        """Base mutation class"""
         class Meta:
             abstract = True
         
         @classmethod
         def perform_mutation(cls, root, info, **kwargs):
-            raise NotImplementedError
+            raise NotImplementedError("Subclasses must implement perform_mutation")
+        
+        @classmethod
+        def mutate(cls, root, info, **kwargs):
+            try:
+                result = cls.perform_mutation(root, info, **kwargs)
+                return result
+            except ValidationError as e:
+                # Create result object with errors as keyword argument
+                return cls(errors=[Error(field='__all__', message=str(e))])
+            except Exception as e:
+                return cls(errors=[Error(field='__all__', message=str(e))])
     _SALEOR_AVAILABLE = False
 
 
