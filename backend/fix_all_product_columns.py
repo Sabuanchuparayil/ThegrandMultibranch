@@ -20,30 +20,28 @@ def _connect():
         raise RuntimeError("DATABASE_URL is not set; cannot apply DB repairs.")
     return psycopg2.connect(dsn)
 
-def check_column_exists(table_name, column_name):
+def check_column_exists(cursor, table_name, column_name):
     """Check if a column exists in a table"""
-    with _connect() as conn, conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.columns 
-                WHERE table_schema = 'public' 
-                AND table_name = %s 
-                AND column_name = %s
-            );
-        """, [table_name, column_name])
-        return cursor.fetchone()[0]
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = %s 
+            AND column_name = %s
+        );
+    """, [table_name, column_name])
+    return cursor.fetchone()[0]
 
-def check_table_exists(table_name):
+def check_table_exists(cursor, table_name):
     """Check if a table exists"""
-    with _connect() as conn, conn.cursor() as cursor:
-        cursor.execute("""
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                AND table_name = %s
-            );
-        """, [table_name])
-        return cursor.fetchone()[0]
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = %s
+        );
+    """, [table_name])
+    return cursor.fetchone()[0]
 
 def add_all_product_columns():
     """Add ALL columns that Saleor's Product model and GraphQL resolvers might need.
@@ -57,15 +55,17 @@ def add_all_product_columns():
     - Other commonly used columns
     """
     try:
-        if not check_table_exists("product_product"):
-            print("❌ Table product_product does not exist. Run migrations first.")
-            return False
-        
-        changes = []
-        
-        # Comprehensive list of ALL columns that Saleor might need
-        # Organized by category for better maintainability
-        all_required_columns = [
+        # Use a single connection for all operations to improve performance
+        with _connect() as conn, conn.cursor() as cursor:
+            if not check_table_exists(cursor, "product_product"):
+                print("❌ Table product_product does not exist. Run migrations first.")
+                return False
+            
+            changes = []
+            
+            # Comprehensive list of ALL columns that Saleor might need
+            # Organized by category for better maintainability
+            all_required_columns = [
             # ============================================================
             # Search-related columns (for full-text search functionality)
             # ============================================================
@@ -200,13 +200,12 @@ def add_all_product_columns():
                 'default': 'DEFAULT true',
                 'description': 'Whether to charge taxes on this product'
             },
-        ]
-        
-        # Add each column if it doesn't exist
-        for col in all_required_columns:
-            if not check_column_exists("product_product", col['name']):
-                print(f"🔧 Adding {col['name']} column ({col['description']})...")
-                with _connect() as conn, conn.cursor() as cursor:
+            ]
+            
+            # Add each column if it doesn't exist
+            for col in all_required_columns:
+                if not check_column_exists(cursor, "product_product", col['name']):
+                    print(f"🔧 Adding {col['name']} column ({col['description']})...")
                     default_clause = col.get('default', '')
                     nullable = 'NULL' if col.get('nullable', True) else 'NOT NULL'
 
@@ -220,15 +219,16 @@ def add_all_product_columns():
                             f"ALTER TABLE product_product "
                             f"ADD COLUMN IF NOT EXISTS {col['name']} {col['type']} {nullable};"
                         )
-                changes.append(col['name'])
-                print(f"✅ Successfully added {col['name']} column")
+                    conn.commit()
+                    changes.append(col['name'])
+                    print(f"✅ Successfully added {col['name']} column")
+                else:
+                    print(f"✅ Column {col['name']} already exists")
+            
+            if changes:
+                print(f"\n✅ Added {len(changes)} column(s): {', '.join(changes)}")
             else:
-                print(f"✅ Column {col['name']} already exists")
-        
-        if changes:
-            print(f"\n✅ Added {len(changes)} column(s): {', '.join(changes)}")
-        else:
-            print("\n✅ All required columns already exist")
+                print("\n✅ All required columns already exist")
         
         return True
     except Exception as e:

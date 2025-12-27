@@ -210,7 +210,7 @@ if os.environ.get('DATABASE_URL'):
                         ['/bin/bash', '-c', shell_cmd],
                         capture_output=True,
                         text=True,
-                        timeout=30,
+                        timeout=120,  # Increased timeout for comprehensive column fixes
                         env=subprocess_env
                     )
                     if result.returncode == 0:
@@ -223,6 +223,8 @@ if os.environ.get('DATABASE_URL'):
                             print(f"STDERR: {result.stderr[:500]}")
                         if result.stdout:
                             print(f"STDOUT: {result.stdout[:500]}")
+            except subprocess.TimeoutExpired:
+                print(f"⚠️  {script_name} timed out after 120 seconds")
             except Exception as e:
                 print(f"⚠️  Could not run product column fix: {e}")
 
